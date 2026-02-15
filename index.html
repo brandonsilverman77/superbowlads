@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Bowl Ad Economy — What Commercials Tell Us About the U.S. Economy</title>
+<meta name="description" content="An interactive visual analysis of Super Bowl advertisers from 1990-2026, revealing economic trends through the brands that pay millions for 30 seconds of airtime.">
+<meta property="og:title" content="Super Bowl Ad Economy">
+<meta property="og:description" content="What Super Bowl commercials tell us about the U.S. economy — from the Dot-Com Bubble to the AI Boom.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.15.0/Recharts.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; overflow-x: hidden; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+  button { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useEffect, useRef } = React;
+const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend } = Recharts;
+
+
+// ============================================================
+// SUPER BOWL COMMERCIAL DATA (1990-2026)
+// Each year: advertisers mapped to industry categories
+// ============================================================
+
+const INDUSTRIES = {
+  AUTO: { name: "Automotive", color: "#2563eb", icon: "🚗" },
+  BEER: { name: "Beer & Alcohol", color: "#d97706", icon: "🍺" },
+  FOOD: { name: "Food & Snacks", color: "#16a34a", icon: "🍿" },
+  TECH: { name: "Technology", color: "#7c3aed", icon: "💻" },
+  TELECOM: { name: "Telecom", color: "#0891b2", icon: "📱" },
+  FINANCE: { name: "Financial Services", color: "#059669", icon: "💰" },
+  INSURANCE: { name: "Insurance", color: "#4f46e5", icon: "🛡️" },
+  ENTERTAINMENT: { name: "Entertainment", color: "#db2777", icon: "🎬" },
+  RETAIL: { name: "Retail & E-Commerce", color: "#ea580c", icon: "🛒" },
+  HEALTH: { name: "Health & Pharma", color: "#dc2626", icon: "💊" },
+  BEVERAGE: { name: "Beverages (Non-Alc)", color: "#0d9488", icon: "🥤" },
+  BEAUTY: { name: "Personal Care & Beauty", color: "#c026d3", icon: "✨" },
+  TRAVEL: { name: "Travel & Hospitality", color: "#0284c7", icon: "✈️" },
+  BETTING: { name: "Sports Betting", color: "#65a30d", icon: "🎰" },
+  AI: { name: "AI & Software", color: "#6d28d9", icon: "🤖" },
+  CRYPTO: { name: "Crypto & Web3", color: "#f59e0b", icon: "₿" },
+  REALESTATE: { name: "Real Estate", color: "#78716c", icon: "🏠" },
+  APPAREL: { name: "Apparel & Fashion", color: "#e11d48", icon: "👟" },
+  QSR: { name: "Restaurants & QSR", color: "#f97316", icon: "🍔" },
+  HOME: { name: "Home Products", color: "#84cc16", icon: "🏡" },
+  DELIVERY: { name: "Delivery Services", color: "#14b8a6", icon: "📦" },
+  NONPROFIT: { name: "Non-Profit & Advocacy", color: "#8b5cf6", icon: "🤝" },
+  DOTCOM: { name: "Dot-Com Startups", color: "#f43f5e", icon: "🌐" },
+  PET: { name: "Pet Products", color: "#a3e635", icon: "🐾" },
+};
+
+const INDUSTRY_KEYS = Object.keys(INDUSTRIES);
+
+// Ad cost per 30-second spot by year (approximate, in millions USD)
+const AD_COSTS = {
+  1990: 0.7, 1991: 0.8, 1992: 0.85, 1993: 0.85, 1994: 0.9, 1995: 1.0,
+  1996: 1.1, 1997: 1.2, 1998: 1.3, 1999: 1.6, 2000: 2.1, 2001: 2.1,
+  2002: 1.9, 2003: 2.1, 2004: 2.3, 2005: 2.4, 2006: 2.5, 2007: 2.6,
+  2008: 2.7, 2009: 3.0, 2010: 2.8, 2011: 3.0, 2012: 3.5, 2013: 3.8,
+  2014: 4.0, 2015: 4.5, 2016: 4.8, 2017: 5.0, 2018: 5.2, 2019: 5.3,
+  2020: 5.6, 2021: 5.5, 2022: 6.5, 2023: 7.0, 2024: 7.0, 2025: 7.0,
+  2026: 8.0,
+};
+
+// Comprehensive advertiser data by year
+// Format: { brand: "Name", industry: "KEY" }
+const YEARLY_DATA = {
+  1990: {
+    sb: "XXIV", teams: "49ers vs Broncos", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},{brand:"Michelob",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},{brand:"Diet Pepsi",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chevrolet",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Burger King",industry:"QSR"},
+      {brand:"American Express",industry:"FINANCE"},{brand:"MasterCard",industry:"FINANCE"},
+      {brand:"Nike",industry:"APPAREL"},{brand:"Reebok",industry:"APPAREL"},
+      {brand:"Gillette",industry:"BEAUTY"},{brand:"Colgate",industry:"BEAUTY"},
+      {brand:"AT&T",industry:"TELECOM"},
+      {brand:"Energizer",industry:"HOME"},{brand:"Eveready",industry:"HOME"},
+      {brand:"M&M's",industry:"FOOD"},{brand:"Doritos",industry:"FOOD"},{brand:"Frito-Lay",industry:"FOOD"},
+      {brand:"Walt Disney World",industry:"TRAVEL"},
+    ]
+  },
+  1991: {
+    sb: "XXV", teams: "Giants vs Bills", network: "ABC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},{brand:"Diet Coke",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chevrolet",industry:"AUTO"},{brand:"Dodge",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Pizza Hut",industry:"QSR"},
+      {brand:"American Express",industry:"FINANCE"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"Gillette",industry:"BEAUTY"},
+      {brand:"AT&T",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"State Farm",industry:"INSURANCE"},
+    ]
+  },
+  1992: {
+    sb: "XXVI", teams: "Redskins vs Bills", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"GM",industry:"AUTO"},{brand:"Subaru",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},
+      {brand:"American Express",industry:"FINANCE"},
+      {brand:"Nike",industry:"APPAREL"},{brand:"Reebok",industry:"APPAREL"},
+      {brand:"Gillette",industry:"BEAUTY"},
+      {brand:"AT&T",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Frito-Lay",industry:"FOOD"},
+      {brand:"Paramount Pictures",industry:"ENTERTAINMENT"},
+    ]
+  },
+  1993: {
+    sb: "XXVII", teams: "Cowboys vs Bills", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chevrolet",industry:"AUTO"},{brand:"Dodge",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Taco Bell",industry:"QSR"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"Gillette",industry:"BEAUTY"},
+      {brand:"AT&T",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},
+      {brand:"IBM",industry:"TECH"},
+      {brand:"State Farm",industry:"INSURANCE"},
+    ]
+  },
+  1994: {
+    sb: "XXVIII", teams: "Cowboys vs Bills", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Coca-Cola",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},
+      {brand:"Nike",industry:"APPAREL"},{brand:"Reebok",industry:"APPAREL"},
+      {brand:"Gillette",industry:"BEAUTY"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"MCI",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"Frito-Lay",industry:"FOOD"},{brand:"Doritos",industry:"FOOD"},
+      {brand:"Disney",industry:"ENTERTAINMENT"},
+      {brand:"Visa",industry:"FINANCE"},
+    ]
+  },
+  1995: {
+    sb: "XXIX", teams: "49ers vs Chargers", network: "ABC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Coca-Cola",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Taco Bell",industry:"QSR"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"MCI",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},{brand:"Energizer",industry:"HOME"},
+      {brand:"Frito-Lay",industry:"FOOD"},{brand:"Doritos",industry:"FOOD"},
+      {brand:"Intel",industry:"TECH"},
+      {brand:"Visa",industry:"FINANCE"},
+      {brand:"Disney",industry:"ENTERTAINMENT"},
+    ]
+  },
+  1996: {
+    sb: "XXX", teams: "Cowboys vs Steelers", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Coca-Cola",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Pizza Hut",industry:"QSR"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"Discover Card",industry:"FINANCE"},{brand:"Visa",industry:"FINANCE"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Frito-Lay",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},
+      {brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"TriStar Pictures",industry:"ENTERTAINMENT"},
+    ]
+  },
+  1997: {
+    sb: "XXXI", teams: "Packers vs Patriots", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Coca-Cola",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Taco Bell",industry:"QSR"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"Visa",industry:"FINANCE"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},
+      {brand:"Intel",industry:"TECH"},
+      {brand:"Holiday Inn",industry:"TRAVEL"},
+    ]
+  },
+  1998: {
+    sb: "XXXII", teams: "Broncos vs Packers", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Coca-Cola",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Cadillac",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Pizza Hut",industry:"QSR"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"Visa",industry:"FINANCE"},{brand:"MasterCard",industry:"FINANCE"},
+      {brand:"AT&T",industry:"TELECOM"},
+      {brand:"Intel",industry:"TECH"},
+      {brand:"Snickers",industry:"FOOD"},{brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},
+      {brand:"Tabasco",industry:"FOOD"},
+      {brand:"Universal Pictures",industry:"ENTERTAINMENT"},
+    ]
+  },
+  1999: {
+    sb: "XXXIII", teams: "Broncos vs Falcons", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mountain Dew",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},{brand:"GM",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"Visa",industry:"FINANCE"},{brand:"E*Trade",industry:"FINANCE"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"Monster.com",industry:"DOTCOM"},{brand:"HotJobs.com",industry:"DOTCOM"},
+      {brand:"Victoria's Secret",industry:"APPAREL"},
+      {brand:"Warner Bros",industry:"ENTERTAINMENT"},
+    ]
+  },
+  2000: {
+    sb: "XXXIV", teams: "Rams vs Titans", network: "ABC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mountain Dew",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},
+      {brand:"Visa",industry:"FINANCE"},{brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"Pets.com",industry:"DOTCOM"},{brand:"Monster.com",industry:"DOTCOM"},{brand:"HotJobs.com",industry:"DOTCOM"},
+      {brand:"OurBeginning.com",industry:"DOTCOM"},{brand:"LifeMinders.com",industry:"DOTCOM"},{brand:"Epidemic.com",industry:"DOTCOM"},
+      {brand:"Computer.com",industry:"DOTCOM"},{brand:"Netpliance",industry:"DOTCOM"},{brand:"LastMinuteTravel.com",industry:"DOTCOM"},
+      {brand:"OnMoney.com",industry:"DOTCOM"},{brand:"Britannica.com",industry:"DOTCOM"},{brand:"WebMD",industry:"DOTCOM"},
+      {brand:"AutoTrader.com",industry:"DOTCOM"},{brand:"Kforce.com",industry:"DOTCOM"},{brand:"E-Stamp",industry:"DOTCOM"},
+      {brand:"MicroStrategy",industry:"DOTCOM"},{brand:"Oxygen Media",industry:"DOTCOM"},{brand:"EDS",industry:"TECH"},
+      {brand:"Xerox",industry:"TECH"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"AT&T",industry:"TELECOM"},
+    ]
+  },
+  2001: {
+    sb: "XXXV", teams: "Ravens vs Giants", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mountain Dew",industry:"BEVERAGE"},
+      {brand:"Dodge",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"BMW",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},
+      {brand:"Subway",industry:"QSR"},{brand:"McDonald's",industry:"QSR"},
+      {brand:"E*Trade",industry:"FINANCE"},{brand:"Charles Schwab",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"Monster.com",industry:"DOTCOM"},{brand:"HotJobs.com",industry:"DOTCOM"},{brand:"EDS",industry:"TECH"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"Cingular",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"Levi's",industry:"APPAREL"},
+      {brand:"20th Century Fox",industry:"ENTERTAINMENT"},
+    ]
+  },
+  2002: {
+    sb: "XXXVI", teams: "Patriots vs Rams", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Cadillac",industry:"AUTO"},{brand:"Dodge",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"GM",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Quiznos",industry:"QSR"},
+      {brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},
+      {brand:"Levi's",industry:"APPAREL"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"Cingular",industry:"TELECOM"},
+      {brand:"Master Lock",industry:"HOME"},
+      {brand:"mLife",industry:"TECH"},
+      {brand:"Universal Pictures",industry:"ENTERTAINMENT"},{brand:"20th Century Fox",industry:"ENTERTAINMENT"},
+    ]
+  },
+  2003: {
+    sb: "XXXVII", teams: "Buccaneers vs Raiders", network: "ABC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Miller Lite",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Gatorade",industry:"BEVERAGE"},
+      {brand:"Cadillac",industry:"AUTO"},{brand:"Dodge",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"GM",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Subway",industry:"QSR"},
+      {brand:"Visa",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Trident",industry:"FOOD"},
+      {brand:"Nike",industry:"APPAREL"},{brand:"Reebok",industry:"APPAREL"},{brand:"Levi's",industry:"APPAREL"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"FedEx",industry:"DELIVERY"},
+      {brand:"Staples",industry:"RETAIL"},
+      {brand:"H&R Block",industry:"FINANCE"},
+      {brand:"Columbia Pictures",industry:"ENTERTAINMENT"},
+    ]
+  },
+  2004: {
+    sb: "XXXVIII", teams: "Patriots vs Panthers", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Gatorade",industry:"BEVERAGE"},
+      {brand:"Cadillac",industry:"AUTO"},{brand:"Dodge",industry:"AUTO"},{brand:"Mitsubishi",industry:"AUTO"},{brand:"Chevy",industry:"AUTO"},{brand:"Ford",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Subway",industry:"QSR"},
+      {brand:"Visa",industry:"FINANCE"},{brand:"MasterCard",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Lay's",industry:"FOOD"},
+      {brand:"Nike",industry:"APPAREL"},{brand:"Levi's",industry:"APPAREL"},
+      {brand:"AT&T",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},{brand:"Nextel",industry:"TELECOM"},
+      {brand:"FedEx",industry:"DELIVERY"},
+      {brand:"Staples",industry:"RETAIL"},
+      {brand:"AOL",industry:"TECH"},
+      {brand:"Sony Pictures",industry:"ENTERTAINMENT"},{brand:"Universal",industry:"ENTERTAINMENT"},
+    ]
+  },
+  2005: {
+    sb: "XXXIX", teams: "Patriots vs Eagles", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Diet Pepsi",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Cadillac",industry:"AUTO"},{brand:"Lincoln",industry:"AUTO"},{brand:"Volvo",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"McDonald's",industry:"QSR"},{brand:"Subway",industry:"QSR"},
+      {brand:"Visa",industry:"FINANCE"},{brand:"Ameriquest",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Lay's",industry:"FOOD"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"FedEx",industry:"DELIVERY"},
+      {brand:"Staples",industry:"RETAIL"},
+      {brand:"Go Daddy",industry:"TECH"},
+      {brand:"20th Century Fox",industry:"ENTERTAINMENT"},{brand:"Sony Pictures",industry:"ENTERTAINMENT"},
+      {brand:"Napster",industry:"TECH"},
+      {brand:"Gillette",industry:"BEAUTY"},
+    ]
+  },
+  2006: {
+    sb: "XL", teams: "Steelers vs Seahawks", network: "ABC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Diet Pepsi",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Cadillac",industry:"AUTO"},{brand:"Honda",industry:"AUTO"},{brand:"Hummer",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"Burger King",industry:"QSR"},
+      {brand:"Ameriquest",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"Nike",industry:"APPAREL"},
+      {brand:"Sprint",industry:"TELECOM"},{brand:"T-Mobile",industry:"TELECOM"},
+      {brand:"FedEx",industry:"DELIVERY"},
+      {brand:"Go Daddy",industry:"TECH"},
+      {brand:"Disney",industry:"ENTERTAINMENT"},{brand:"Sony Pictures",industry:"ENTERTAINMENT"},
+      {brand:"Gillette",industry:"BEAUTY"},
+      {brand:"Nationwide",industry:"INSURANCE"},
+      {brand:"CareerBuilder",industry:"RETAIL"},
+    ]
+  },
+  2007: {
+    sb: "XLI", teams: "Colts vs Bears", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Ford",industry:"AUTO"},{brand:"Cadillac",industry:"AUTO"},{brand:"GM",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Honda",industry:"AUTO"},
+      {brand:"Burger King",industry:"QSR"},
+      {brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"Sprint",industry:"TELECOM"},{brand:"T-Mobile",industry:"TELECOM"},{brand:"Cingular",industry:"TELECOM"},
+      {brand:"FedEx",industry:"DELIVERY"},
+      {brand:"Go Daddy",industry:"TECH"},
+      {brand:"Disney",industry:"ENTERTAINMENT"},{brand:"Paramount",industry:"ENTERTAINMENT"},
+      {brand:"Nationwide",industry:"INSURANCE"},
+      {brand:"CareerBuilder",industry:"RETAIL"},
+      {brand:"Garmin",industry:"TECH"},
+      {brand:"Revlon",industry:"BEAUTY"},
+    ]
+  },
+  2008: {
+    sb: "XLII", teams: "Giants vs Patriots", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Cadillac",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},
+      {brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Planters",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"FedEx",industry:"DELIVERY"},
+      {brand:"Go Daddy",industry:"TECH"},{brand:"SalesGenie",industry:"TECH"},
+      {brand:"20th Century Fox",industry:"ENTERTAINMENT"},{brand:"Paramount",industry:"ENTERTAINMENT"},
+      {brand:"Tide",industry:"HOME"},
+      {brand:"CareerBuilder",industry:"RETAIL"},
+      {brand:"Under Armour",industry:"APPAREL"},
+      {brand:"Bridgestone",industry:"AUTO"},
+    ]
+  },
+  2009: {
+    sb: "XLIII", teams: "Steelers vs Cardinals", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Denny's",industry:"QSR"},
+      {brand:"Sprint",industry:"TELECOM"},{brand:"T-Mobile",industry:"TELECOM"},
+      {brand:"GoDaddy",industry:"TECH"},{brand:"Hulu",industry:"TECH"},
+      {brand:"NBC Universal",industry:"ENTERTAINMENT"},{brand:"DreamWorks",industry:"ENTERTAINMENT"},
+      {brand:"Tide",industry:"HOME"},
+      {brand:"CareerBuilder",industry:"RETAIL"},{brand:"Cars.com",industry:"RETAIL"},
+      {brand:"Castrol",industry:"AUTO"},
+      {brand:"Teleflora",industry:"RETAIL"},
+      {brand:"Cash4Gold",industry:"FINANCE"},
+    ]
+  },
+  2010: {
+    sb: "XLIV", teams: "Saints vs Colts", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Honda",industry:"AUTO"},{brand:"Dodge",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},
+      {brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"Sprint",industry:"TELECOM"},{brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"GoDaddy",industry:"TECH"},{brand:"Google",industry:"TECH"},
+      {brand:"CBS",industry:"ENTERTAINMENT"},{brand:"Paramount",industry:"ENTERTAINMENT"},
+      {brand:"Tide",industry:"HOME"},{brand:"Dove",industry:"BEAUTY"},
+      {brand:"CareerBuilder",industry:"RETAIL"},{brand:"Cars.com",industry:"RETAIL"},
+      {brand:"Skechers",industry:"APPAREL"},
+      {brand:"Denny's",industry:"QSR"},
+      {brand:"FLO TV",industry:"TECH"},
+      {brand:"Monster.com",industry:"RETAIL"},
+      {brand:"HomeAway",industry:"TRAVEL"},
+    ]
+  },
+  2011: {
+    sb: "XLV", teams: "Packers vs Steelers", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Stella Artois",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi Max",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"BMW",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Mercedes-Benz",industry:"AUTO"},{brand:"Chevy",industry:"AUTO"},
+      {brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},
+      {brand:"Sprint",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"GoDaddy",industry:"TECH"},{brand:"Motorola",industry:"TECH"},
+      {brand:"Cars.com",industry:"RETAIL"},{brand:"CarMax",industry:"RETAIL"},
+      {brand:"Skechers",industry:"APPAREL"},
+      {brand:"Teleflora",industry:"RETAIL"},
+      {brand:"HomeAway",industry:"TRAVEL"},
+      {brand:"20th Century Fox",industry:"ENTERTAINMENT"},{brand:"Paramount",industry:"ENTERTAINMENT"},
+    ]
+  },
+  2012: {
+    sb: "XLVI", teams: "Giants vs Patriots", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Acura",industry:"AUTO"},{brand:"Chevy",industry:"AUTO"},{brand:"Honda",industry:"AUTO"},
+      {brand:"E*Trade",industry:"FINANCE"},{brand:"TaxACT",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},
+      {brand:"Verizon",industry:"TELECOM"},{brand:"Samsung",industry:"TECH"},
+      {brand:"GoDaddy",industry:"TECH"},
+      {brand:"Cars.com",industry:"RETAIL"},{brand:"CarMax",industry:"RETAIL"},
+      {brand:"Skechers",industry:"APPAREL"},
+      {brand:"NBC",industry:"ENTERTAINMENT"},{brand:"Disney",industry:"ENTERTAINMENT"},
+      {brand:"Century 21",industry:"REALESTATE"},
+      {brand:"H&M",industry:"APPAREL"},
+      {brand:"Oikos",industry:"FOOD"},
+      {brand:"Tide",industry:"HOME"},
+    ]
+  },
+  2013: {
+    sb: "XLVII", teams: "Ravens vs 49ers", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Beck's Sapphire",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},{brand:"Mercedes-Benz",industry:"AUTO"},{brand:"Ram",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},{brand:"Lincoln",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Oreo",industry:"FOOD"},{brand:"Taco Bell",industry:"QSR"},
+      {brand:"Samsung",industry:"TECH"},{brand:"Blackberry",industry:"TECH"},
+      {brand:"GoDaddy",industry:"TECH"},
+      {brand:"Tide",industry:"HOME"},{brand:"Swiffer",industry:"HOME"},
+      {brand:"Best Buy",industry:"RETAIL"},
+      {brand:"Calvin Klein",industry:"APPAREL"},
+      {brand:"CBS",industry:"ENTERTAINMENT"},{brand:"Paramount",industry:"ENTERTAINMENT"},
+      {brand:"Gildan",industry:"APPAREL"},
+      {brand:"Century 21",industry:"REALESTATE"},
+      {brand:"Milk",industry:"BEVERAGE"},
+      {brand:"Wonderful Pistachios",industry:"FOOD"},
+    ]
+  },
+  2014: {
+    sb: "XLVIII", teams: "Seahawks vs Broncos", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Chrysler",industry:"AUTO"},{brand:"Jaguar",industry:"AUTO"},{brand:"Chevy",industry:"AUTO"},{brand:"Ford",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Butterfinger",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"GoDaddy",industry:"TECH"},{brand:"Microsoft",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"RadioShack",industry:"RETAIL"},
+      {brand:"H&R Block",industry:"FINANCE"},
+      {brand:"Beats",industry:"TECH"},
+      {brand:"Axe",industry:"BEAUTY"},
+      {brand:"20th Century Fox",industry:"ENTERTAINMENT"},{brand:"Universal",industry:"ENTERTAINMENT"},
+      {brand:"Wonderful Pistachios",industry:"FOOD"},
+      {brand:"Oikos",industry:"FOOD"},
+      {brand:"SodaStream",industry:"BEVERAGE"},
+    ]
+  },
+  2015: {
+    sb: "XLIX", teams: "Patriots vs Seahawks", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mtn Dew",industry:"BEVERAGE"},
+      {brand:"BMW",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Lexus",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Fiat",industry:"AUTO"},{brand:"Dodge",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},{brand:"Skittles",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"GoDaddy",industry:"TECH"},{brand:"Microsoft",industry:"TECH"},{brand:"Wix",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"Nationwide",industry:"INSURANCE"},
+      {brand:"Always",industry:"BEAUTY"},{brand:"Dove",industry:"BEAUTY"},
+      {brand:"NBC",industry:"ENTERTAINMENT"},{brand:"Universal",industry:"ENTERTAINMENT"},
+      {brand:"Loctite",industry:"HOME"},
+      {brand:"Carl's Jr",industry:"QSR"},{brand:"McDonald's",industry:"QSR"},
+      {brand:"Victoria's Secret",industry:"APPAREL"},
+    ]
+  },
+  2016: {
+    sb: "50", teams: "Broncos vs Panthers", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mtn Dew",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Mini",industry:"AUTO"},{brand:"Honda",industry:"AUTO"},{brand:"Acura",industry:"AUTO"},{brand:"Buick",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},{brand:"Skittles",industry:"FOOD"},{brand:"Heinz",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"Wix",industry:"TECH"},{brand:"Amazon Echo",industry:"TECH"},{brand:"Squarespace",industry:"TECH"},{brand:"LG",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},{brand:"PayPal",industry:"FINANCE"},
+      {brand:"Colgate",industry:"BEAUTY"},
+      {brand:"CBS",industry:"ENTERTAINMENT"},{brand:"Disney",industry:"ENTERTAINMENT"},{brand:"Paramount",industry:"ENTERTAINMENT"},
+      {brand:"WeatherTech",industry:"HOME"},
+      {brand:"Taco Bell",industry:"QSR"},
+      {brand:"Fitbit",industry:"TECH"},
+      {brand:"SunTrust",industry:"FINANCE"},
+    ]
+  },
+  2017: {
+    sb: "LI", teams: "Patriots vs Falcons", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Lexus",industry:"AUTO"},{brand:"Honda",industry:"AUTO"},{brand:"Mercedes-Benz",industry:"AUTO"},{brand:"Alfa Romeo",industry:"AUTO"},{brand:"Ford",industry:"AUTO"},{brand:"Buick",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},{brand:"Skittles",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Intel",industry:"TECH"},{brand:"Snap",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"It's a 10 Haircare",industry:"BEAUTY"},
+      {brand:"Fox",industry:"ENTERTAINMENT"},{brand:"Universal",industry:"ENTERTAINMENT"},{brand:"Warner Bros",industry:"ENTERTAINMENT"},
+      {brand:"WeatherTech",industry:"HOME"},{brand:"Mr. Clean",industry:"HOME"},{brand:"Febreze",industry:"HOME"},
+      {brand:"Wendy's",industry:"QSR"},
+      {brand:"Airbnb",industry:"TRAVEL"},
+      {brand:"84 Lumber",industry:"HOME"},
+      {brand:"Avocados From Mexico",industry:"FOOD"},
+    ]
+  },
+  2018: {
+    sb: "LII", teams: "Eagles vs Patriots", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},{brand:"Stella Artois",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Lexus",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Ram",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Skittles",industry:"FOOD"},{brand:"Avocados From Mexico",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Sprint",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Amazon Alexa",industry:"TECH"},{brand:"Wix",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},{brand:"E*Trade",industry:"FINANCE"},
+      {brand:"Febreze",industry:"HOME"},{brand:"Tide",industry:"HOME"},{brand:"WeatherTech",industry:"HOME"},
+      {brand:"NBC",industry:"ENTERTAINMENT"},{brand:"Universal",industry:"ENTERTAINMENT"},
+      {brand:"Groupon",industry:"RETAIL"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"Australia Tourism",industry:"TRAVEL"},
+    ]
+  },
+  2019: {
+    sb: "LIII", teams: "Patriots vs Rams", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},{brand:"Stella Artois",industry:"BEER"},{brand:"Bon & Viv",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Mercedes-Benz",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Avocados From Mexico",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Amazon Alexa",industry:"TECH"},{brand:"Microsoft",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"WeatherTech",industry:"HOME"},
+      {brand:"CBS",industry:"ENTERTAINMENT"},{brand:"Disney",industry:"ENTERTAINMENT"},{brand:"Universal",industry:"ENTERTAINMENT"},
+      {brand:"Burger King",industry:"QSR"},
+      {brand:"Olay",industry:"BEAUTY"},
+      {brand:"Bumble",industry:"TECH"},
+      {brand:"SimpliSafe",industry:"HOME"},
+      {brand:"Devour",industry:"FOOD"},
+      {brand:"Skechers",industry:"APPAREL"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+    ]
+  },
+  2020: {
+    sb: "LIV", teams: "Chiefs vs 49ers", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mountain Dew",industry:"BEVERAGE"},
+      {brand:"Audi",industry:"AUTO"},{brand:"Hyundai",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},{brand:"Genesis",industry:"AUTO"},{brand:"Porsche",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Snickers",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Avocados From Mexico",industry:"FOOD"},{brand:"Planters",industry:"FOOD"},{brand:"Pop-Tarts",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Amazon Alexa",industry:"TECH"},{brand:"Google",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"WeatherTech",industry:"HOME"},{brand:"Tide",industry:"HOME"},
+      {brand:"Fox",industry:"ENTERTAINMENT"},{brand:"Disney+",industry:"ENTERTAINMENT"},{brand:"Hulu",industry:"ENTERTAINMENT"},{brand:"Quibi",industry:"ENTERTAINMENT"},
+      {brand:"Walmart",industry:"RETAIL"},
+      {brand:"Olay",industry:"BEAUTY"},
+      {brand:"SodaStream",industry:"BEVERAGE"},
+      {brand:"Rocket Mortgage",industry:"REALESTATE"},
+      {brand:"Hard Rock Hotel",industry:"TRAVEL"},
+      {brand:"New York Life",industry:"INSURANCE"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"Little Caesars",industry:"QSR"},
+      {brand:"Facebook",industry:"TECH"},
+    ]
+  },
+  2021: {
+    sb: "LV", teams: "Buccaneers vs Chiefs", network: "CBS",
+    ads: [
+      {brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},{brand:"Sam Adams",industry:"BEER"},{brand:"Cutwater Spirits",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mountain Dew",industry:"BEVERAGE"},
+      {brand:"GM",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Cadillac",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Cheetos",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Amazon Alexa",industry:"TECH"},{brand:"Indeed",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"WeatherTech",industry:"HOME"},{brand:"Tide",industry:"HOME"},{brand:"Scotts",industry:"HOME"},
+      {brand:"CBS",industry:"ENTERTAINMENT"},{brand:"Paramount+",industry:"ENTERTAINMENT"},{brand:"Disney+",industry:"ENTERTAINMENT"},
+      {brand:"Uber Eats",industry:"DELIVERY"},{brand:"DoorDash",industry:"DELIVERY"},
+      {brand:"State Farm",industry:"INSURANCE"},
+      {brand:"Rocket Mortgage",industry:"REALESTATE"},
+      {brand:"Huggies",industry:"HOME"},
+      {brand:"Oatly",industry:"BEVERAGE"},
+      {brand:"Dexcom",industry:"HEALTH"},
+      {brand:"Fiverr",industry:"TECH"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"Robinhood",industry:"FINANCE"},
+      {brand:"Bass Pro Shops",industry:"RETAIL"},
+      {brand:"Hellmann's",industry:"FOOD"},
+    ]
+  },
+  2022: {
+    sb: "LVI", teams: "Rams vs Bengals", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},{brand:"Cutwater Spirits",industry:"BEER"},
+      {brand:"Coca-Cola",industry:"BEVERAGE"},{brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"BMW",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Nissan",industry:"AUTO"},{brand:"Chevrolet",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Polestar",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Lay's",industry:"FOOD"},{brand:"Avocados From Mexico",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Amazon Alexa",industry:"TECH"},{brand:"Google Pixel",industry:"TECH"},{brand:"Meta",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"WeatherTech",industry:"HOME"},{brand:"Greenlight",industry:"FINANCE"},
+      {brand:"NBC",industry:"ENTERTAINMENT"},{brand:"Peacock",industry:"ENTERTAINMENT"},{brand:"Universal",industry:"ENTERTAINMENT"},
+      {brand:"Uber Eats",industry:"DELIVERY"},{brand:"DoorDash",industry:"DELIVERY"},
+      {brand:"Carvana",industry:"RETAIL"},
+      {brand:"Rocket Mortgage",industry:"REALESTATE"},{brand:"Realtor.com",industry:"REALESTATE"},
+      {brand:"Hellmann's",industry:"FOOD"},
+      {brand:"FTX",industry:"CRYPTO"},{brand:"Crypto.com",industry:"CRYPTO"},{brand:"Coinbase",industry:"CRYPTO"},{brand:"eToro",industry:"CRYPTO"},
+      {brand:"Salesforce",industry:"TECH"},
+      {brand:"Irish Spring",industry:"BEAUTY"},
+      {brand:"Sam's Club",industry:"RETAIL"},
+      {brand:"Planet Fitness",industry:"HEALTH"},
+      {brand:"Expedia",industry:"TRAVEL"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"Wallbox",industry:"TECH"},
+    ]
+  },
+  2023: {
+    sb: "LVII", teams: "Chiefs vs Eagles", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},{brand:"Rémy Martin",industry:"BEER"},{brand:"Molson Coors",industry:"BEER"},{brand:"Crown Royal",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},
+      {brand:"GM",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Ram",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"M&M's",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Avocados From Mexico",industry:"FOOD"},{brand:"Frito-Lay PopCorners",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Google Pixel",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"WeatherTech",industry:"HOME"},{brand:"Downy",industry:"HOME"},
+      {brand:"Fox",industry:"ENTERTAINMENT"},{brand:"Disney+",industry:"ENTERTAINMENT"},{brand:"Paramount",industry:"ENTERTAINMENT"},{brand:"Netflix",industry:"ENTERTAINMENT"},
+      {brand:"Uber Eats",industry:"DELIVERY"},{brand:"DoorDash",industry:"DELIVERY"},
+      {brand:"State Farm",industry:"INSURANCE"},{brand:"Farmers Insurance",industry:"INSURANCE"},
+      {brand:"Rakuten",industry:"RETAIL"},
+      {brand:"Hellmann's",industry:"FOOD"},
+      {brand:"Workday",industry:"TECH"},
+      {brand:"He Gets Us",industry:"NONPROFIT"},
+      {brand:"Tubi",industry:"ENTERTAINMENT"},
+      {brand:"Dunkin'",industry:"QSR"},
+      {brand:"Draft Kings",industry:"BETTING"},{brand:"FanDuel",industry:"BETTING"},
+      {brand:"e.l.f. Cosmetics",industry:"BEAUTY"},
+      {brand:"Limit Break",industry:"CRYPTO"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"Booking.com",industry:"TRAVEL"},
+    ]
+  },
+  2024: {
+    sb: "LVIII", teams: "Chiefs vs 49ers", network: "CBS",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},{brand:"Coors Light",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mountain Dew",industry:"BEVERAGE"},{brand:"Starry",industry:"BEVERAGE"},{brand:"Poppi",industry:"BEVERAGE"},
+      {brand:"BMW",industry:"AUTO"},{brand:"Kia",industry:"AUTO"},{brand:"Volkswagen",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},{brand:"Ram",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Lay's",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Oreo",industry:"FOOD"},{brand:"Nerds",industry:"FOOD"},{brand:"Reese's",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Google Pixel",industry:"TECH"},{brand:"Microsoft Copilot",industry:"AI"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"WeatherTech",industry:"HOME"},
+      {brand:"CBS",industry:"ENTERTAINMENT"},{brand:"Paramount+",industry:"ENTERTAINMENT"},{brand:"Disney+",industry:"ENTERTAINMENT"},{brand:"Peacock",industry:"ENTERTAINMENT"},
+      {brand:"Uber Eats",industry:"DELIVERY"},{brand:"DoorDash",industry:"DELIVERY"},
+      {brand:"State Farm",industry:"INSURANCE"},
+      {brand:"Homes.com",industry:"REALESTATE"},
+      {brand:"Hellmann's",industry:"FOOD"},
+      {brand:"He Gets Us",industry:"NONPROFIT"},
+      {brand:"Dunkin'",industry:"QSR"},{brand:"Popeyes",industry:"QSR"},
+      {brand:"DraftKings",industry:"BETTING"},{brand:"FanDuel",industry:"BETTING"},{brand:"BetMGM",industry:"BETTING"},
+      {brand:"e.l.f. Cosmetics",industry:"BEAUTY"},{brand:"Dove",industry:"BEAUTY"},{brand:"NYX",industry:"BEAUTY"},{brand:"CeraVe",industry:"BEAUTY"},
+      {brand:"Booking.com",industry:"TRAVEL"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"Etsy",industry:"RETAIL"},
+      {brand:"Lindt",industry:"FOOD"},
+      {brand:"Pfizer",industry:"HEALTH"},{brand:"Novartis",industry:"HEALTH"},
+      {brand:"Snapchat",industry:"TECH"},
+    ]
+  },
+  2025: {
+    sb: "LIX", teams: "Eagles vs Chiefs", network: "Fox",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Michelob Ultra",industry:"BEER"},{brand:"Coors Light",industry:"BEER"},{brand:"Stella Artois",industry:"BEER"},{brand:"Busch Light",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Mountain Dew",industry:"BEVERAGE"},{brand:"Liquid Death",industry:"BEVERAGE"},{brand:"Poppi",industry:"BEVERAGE"},
+      {brand:"Jeep",industry:"AUTO"},{brand:"Ram",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Lay's",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Nerds",industry:"FOOD"},{brand:"Reese's",industry:"FOOD"},{brand:"Ritz",industry:"FOOD"},{brand:"Totino's",industry:"FOOD"},{brand:"Instacart",industry:"DELIVERY"},{brand:"Häagen-Dazs",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Verizon",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Google Pixel",industry:"TECH"},{brand:"Salesforce",industry:"AI"},{brand:"OpenAI",industry:"AI"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},
+      {brand:"WeatherTech",industry:"HOME"},{brand:"Bosch",industry:"HOME"},
+      {brand:"Fox",industry:"ENTERTAINMENT"},{brand:"Disney+",industry:"ENTERTAINMENT"},{brand:"Tubi",industry:"ENTERTAINMENT"},{brand:"Hulu",industry:"ENTERTAINMENT"},
+      {brand:"Uber Eats",industry:"DELIVERY"},{brand:"DoorDash",industry:"DELIVERY"},
+      {brand:"State Farm",industry:"INSURANCE"},
+      {brand:"Homes.com",industry:"REALESTATE"},
+      {brand:"Hellmann's",industry:"FOOD"},
+      {brand:"He Gets Us",industry:"NONPROFIT"},
+      {brand:"Dunkin'",industry:"QSR"},{brand:"Taco Bell",industry:"QSR"},
+      {brand:"DraftKings",industry:"BETTING"},{brand:"FanDuel",industry:"BETTING"},
+      {brand:"Dove",industry:"BEAUTY"},{brand:"Cetaphil",industry:"BEAUTY"},
+      {brand:"Nike",industry:"APPAREL"},{brand:"Skechers",industry:"APPAREL"},{brand:"On",industry:"APPAREL"},
+      {brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"MSC Cruises",industry:"TRAVEL"},{brand:"Booking.com",industry:"TRAVEL"},
+      {brand:"Meta",industry:"TECH"},
+      {brand:"Pfizer",industry:"HEALTH"},{brand:"Novartis",industry:"HEALTH"},{brand:"Hims & Hers",industry:"HEALTH"},
+      {brand:"Oikos",industry:"FOOD"},
+      {brand:"Rocket Mortgage",industry:"REALESTATE"},
+    ]
+  },
+  2026: {
+    sb: "LX", teams: "Patriots vs Seahawks", network: "NBC",
+    ads: [
+      {brand:"Budweiser",industry:"BEER"},{brand:"Bud Light",industry:"BEER"},{brand:"Svedka",industry:"BEER"},
+      {brand:"Pepsi",industry:"BEVERAGE"},{brand:"Liquid I.V.",industry:"BEVERAGE"},{brand:"Liquid Death",industry:"BEVERAGE"},{brand:"Poppi",industry:"BEVERAGE"},{brand:"Red Bull",industry:"BEVERAGE"},
+      {brand:"Volkswagen",industry:"AUTO"},{brand:"Toyota",industry:"AUTO"},{brand:"Jeep",industry:"AUTO"},{brand:"Cadillac F1",industry:"AUTO"},
+      {brand:"Doritos",industry:"FOOD"},{brand:"Lay's",industry:"FOOD"},{brand:"Pringles",industry:"FOOD"},{brand:"Nerds",industry:"FOOD"},{brand:"Ritz",industry:"FOOD"},{brand:"Kinder Bueno",industry:"FOOD"},{brand:"Hellmann's",industry:"FOOD"},{brand:"Skittles",industry:"FOOD"},
+      {brand:"T-Mobile",industry:"TELECOM"},{brand:"Xfinity",industry:"TELECOM"},
+      {brand:"Squarespace",industry:"TECH"},{brand:"Google",industry:"TECH"},{brand:"Salesforce",industry:"AI"},{brand:"OpenAI",industry:"AI"},{brand:"Anthropic",industry:"AI"},{brand:"Genspark",industry:"AI"},{brand:"Base44",industry:"AI"},{brand:"Wix",industry:"TECH"},{brand:"Meta",industry:"TECH"},
+      {brand:"Intuit TurboTax",industry:"FINANCE"},{brand:"Coinbase",industry:"CRYPTO"},
+      {brand:"WeatherTech",industry:"HOME"},{brand:"Bosch",industry:"HOME"},
+      {brand:"NBC/Peacock",industry:"ENTERTAINMENT"},{brand:"Netflix",industry:"ENTERTAINMENT"},{brand:"Universal Pictures",industry:"ENTERTAINMENT"},{brand:"Amazon MGM",industry:"ENTERTAINMENT"},
+      {brand:"Uber Eats",industry:"DELIVERY"},{brand:"Instacart",industry:"DELIVERY"},{brand:"Grubhub",industry:"DELIVERY"},
+      {brand:"He Gets Us",industry:"NONPROFIT"},{brand:"Blue Square Alliance",industry:"NONPROFIT"},{brand:"MAHA Alliance",industry:"NONPROFIT"},
+      {brand:"Dunkin'",industry:"QSR"},{brand:"Dave's Hot Chicken",industry:"QSR"},
+      {brand:"DraftKings",industry:"BETTING"},{brand:"Fanatics Sportsbook",industry:"BETTING"},
+      {brand:"Dove",industry:"BEAUTY"},{brand:"Manscaped",industry:"BEAUTY"},
+      {brand:"Skechers",industry:"APPAREL"},{brand:"Levi's",industry:"APPAREL"},
+      {brand:"Homes.com",industry:"REALESTATE"},{brand:"Rocket Mortgage",industry:"REALESTATE"},
+      {brand:"Wegovy",industry:"HEALTH"},{brand:"Novartis",industry:"HEALTH"},{brand:"Boehringer Ingelheim",industry:"HEALTH"},{brand:"Ro",industry:"HEALTH"},{brand:"Hims",industry:"HEALTH"},
+      {brand:"Pokemon",industry:"ENTERTAINMENT"},{brand:"NFL",industry:"ENTERTAINMENT"},
+      {brand:"Microsoft Copilot",industry:"AI"},{brand:"Amazon Alexa+",industry:"TECH"},
+      {brand:"Ring",industry:"TECH"},
+      {brand:"Michelob",industry:"BEER"},
+      {brand:"Southwest Airlines",industry:"TRAVEL"},
+    ]
+  },
+};
+
+// Economic context annotations
+const ECONOMIC_EVENTS = [
+  { year: 1991, label: "Gulf War Recession", type: "recession" },
+  { year: 2000, label: "Dot-Com Bubble Peak", type: "bubble" },
+  { year: 2001, label: "9/11 + Recession", type: "recession" },
+  { year: 2008, label: "Financial Crisis Begins", type: "recession" },
+  { year: 2009, label: "Great Recession", type: "recession" },
+  { year: 2020, label: "COVID-19 Pandemic", type: "pandemic" },
+  { year: 2021, label: "Stimulus & Recovery", type: "recovery" },
+  { year: 2022, label: "Crypto Bowl", type: "bubble" },
+  { year: 2024, label: "AI Boom Begins", type: "boom" },
+  { year: 2026, label: "AI Dominates + GLP-1 Wave", type: "boom" },
+];
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+
+function getIndustryBreakdown(year) {
+  const data = YEARLY_DATA[year];
+  if (!data) return {};
+  const counts = {};
+  data.ads.forEach(ad => {
+    counts[ad.industry] = (counts[ad.industry] || 0) + 1;
+  });
+  return counts;
+}
+
+function getTimelineData() {
+  return Object.keys(YEARLY_DATA).map(year => {
+    const y = parseInt(year);
+    const breakdown = getIndustryBreakdown(y);
+    const total = YEARLY_DATA[y].ads.length;
+    const entry = { year: y, total, cost: AD_COSTS[y] || 0 };
+    INDUSTRY_KEYS.forEach(key => {
+      entry[key] = breakdown[key] || 0;
+    });
+    return entry;
+  }).sort((a, b) => a.year - b.year);
+}
+
+function getTopIndustriesForYear(year) {
+  const breakdown = getIndustryBreakdown(year);
+  return Object.entries(breakdown)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, count]) => ({ key, count, ...INDUSTRIES[key] }));
+}
+
+// Which industries to show in the stacked chart (top ones by total presence)
+function getTopIndustriesOverall(n = 10) {
+  const totals = {};
+  Object.keys(YEARLY_DATA).forEach(year => {
+    const breakdown = getIndustryBreakdown(parseInt(year));
+    Object.entries(breakdown).forEach(([key, count]) => {
+      totals[key] = (totals[key] || 0) + count;
+    });
+  });
+  return Object.entries(totals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([key]) => key);
+}
+
+// ============================================================
+// COMPONENTS
+// ============================================================
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload) return null;
+  const data = YEARLY_DATA[label];
+  if (!data) return null;
+  return (
+    <div style={{
+      background: "rgba(15,15,20,0.95)", border: "1px solid rgba(255,255,255,0.15)",
+      borderRadius: 8, padding: "12px 16px", maxWidth: 280, backdropFilter: "blur(10px)"
+    }}>
+      <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 18, color: "#fff", marginBottom: 4 }}>
+        Super Bowl {data.sb} ({label})
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>
+        {data.teams} &middot; {data.network} &middot; ${AD_COSTS[label]}M per :30
+      </div>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+        {data.ads.length} advertisers
+      </div>
+      {payload.filter(p => p.value > 0).sort((a,b) => b.value - a.value).slice(0, 6).map((p, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+            {INDUSTRIES[p.dataKey]?.name}: {p.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+function HeroSection({ onExplore }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
+  
+  const years = Object.keys(YEARLY_DATA).length;
+  const totalAds = Object.values(YEARLY_DATA).reduce((s, y) => s + y.ads.length, 0);
+  const uniqueBrands = new Set();
+  Object.values(YEARLY_DATA).forEach(y => y.ads.forEach(a => uniqueBrands.add(a.brand)));
+  
+  return (
+    <div style={{
+      minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center",
+      alignItems: "center", textAlign: "center", padding: "40px 20px", position: "relative",
+      background: "linear-gradient(180deg, #0a0a0f 0%, #111118 50%, #0d0d14 100%)",
+      overflow: "hidden",
+    }}>
+      <div style={{
+        position: "absolute", inset: 0, opacity: 0.06,
+        backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,0.03) 60px, rgba(255,255,255,0.03) 61px),
+          repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,0.03) 60px, rgba(255,255,255,0.03) 61px)`,
+      }} />
+      
+      <div style={{
+        opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(30px)",
+        transition: "all 1.2s cubic-bezier(0.16, 1, 0.3, 1)", maxWidth: 800,
+      }}>
+        <div style={{
+          fontSize: 13, fontFamily: "'DM Mono', monospace", color: "#f59e0b",
+          letterSpacing: 4, textTransform: "uppercase", marginBottom: 24,
+          opacity: visible ? 1 : 0, transition: "opacity 1s ease 0.3s"
+        }}>
+          A Visual Analysis
+        </div>
+        
+        <h1 style={{
+          fontFamily: "'Instrument Serif', Georgia, serif", fontSize: "clamp(36px, 7vw, 72px)",
+          fontWeight: 400, color: "#fff", lineHeight: 1.05, margin: "0 0 24px",
+          letterSpacing: "-0.02em"
+        }}>
+          What Super Bowl Ads<br/>
+          <span style={{ color: "#f59e0b" }}>Tell Us About the Economy</span>
+        </h1>
+        
+        <p style={{
+          fontSize: "clamp(15px, 2vw, 18px)", color: "rgba(255,255,255,0.5)",
+          lineHeight: 1.7, maxWidth: 540, margin: "0 auto 40px",
+          fontFamily: "'DM Sans', system-ui, sans-serif"
+        }}>
+          From the Dot-Com Bubble to the AI Boom, the brands that spend $8M for 30 seconds of your attention
+          reveal exactly where American capitalism is headed.
+        </p>
+        
+        <div style={{
+          display: "flex", gap: 32, justifyContent: "center", marginBottom: 48, flexWrap: "wrap",
+          opacity: visible ? 1 : 0, transition: "opacity 1s ease 0.6s"
+        }}>
+          {[
+            { n: years, label: "Years" },
+            { n: totalAds.toLocaleString(), label: "Ads Tracked" },
+            { n: uniqueBrands.size, label: "Brands" },
+            { n: Object.keys(INDUSTRIES).length, label: "Industries" },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff" }}>{s.n}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace", letterSpacing: 1, textTransform: "uppercase" }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        
+        <button onClick={onExplore} style={{
+          background: "#f59e0b", color: "#000", border: "none", padding: "14px 36px",
+          fontSize: 14, fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 600,
+          borderRadius: 6, cursor: "pointer", letterSpacing: 0.5,
+          transition: "all 0.3s ease",
+        }}
+        onMouseOver={e => { e.target.style.background = "#fbbf24"; e.target.style.transform = "translateY(-2px)"; }}
+        onMouseOut={e => { e.target.style.background = "#f59e0b"; e.target.style.transform = "translateY(0)"; }}
+        >
+          Explore the Data &darr;
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NavBar({ activeView, setActiveView, showNav }) {
+  const views = [
+    { id: "timeline", label: "Timeline" },
+    { id: "industries", label: "Industries" },
+    { id: "explore", label: "By Year" },
+    { id: "insights", label: "Insights" },
+  ];
+  
+  return (
+    <div style={{
+      position: "sticky", top: 0, zIndex: 100, background: "rgba(10,10,15,0.9)",
+      backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,0.08)",
+      padding: "0 20px",
+      opacity: showNav ? 1 : 0, pointerEvents: showNav ? "auto" : "none",
+      transition: "opacity 0.3s ease",
+    }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 18, color: "#fff", padding: "14px 0" }}>
+          SB Ad<span style={{ color: "#f59e0b" }}>Economy</span>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {views.map(v => (
+            <button key={v.id} onClick={() => setActiveView(v.id)} style={{
+              background: activeView === v.id ? "rgba(245,158,11,0.15)" : "transparent",
+              color: activeView === v.id ? "#f59e0b" : "rgba(255,255,255,0.5)",
+              border: "none", padding: "10px 16px", borderRadius: 6, cursor: "pointer",
+              fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 500,
+              transition: "all 0.2s ease",
+            }}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TimelineView({ onSelectYear }) {
+  const data = getTimelineData();
+  const topIndustries = getTopIndustriesOverall(8);
+  
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 1200, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        Industry Mix Over Time
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        Number of advertisers by industry category per Super Bowl. Click any bar to see that year's details.
+      </p>
+      
+      <div style={{ width: "100%", height: 420, marginBottom: 16 }}>
+        <ResponsiveContainer>
+          <BarChart data={data} onClick={(e) => e && e.activeLabel && onSelectYear(e.activeLabel)}>
+            <XAxis dataKey="year" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }} 
+              interval={2} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+            <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }} 
+              tickLine={false} axisLine={false} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+            {topIndustries.map(key => (
+              <Bar key={key} dataKey={key} stackId="a" fill={INDUSTRIES[key].color} 
+                radius={key === topIndustries[topIndustries.length - 1] ? [2, 2, 0, 0] : 0}
+                style={{ cursor: "pointer" }} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", justifyContent: "center", marginBottom: 40 }}>
+        {topIndustries.map(key => (
+          <div key={key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: INDUSTRIES[key].color }} />
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              {INDUSTRIES[key].name}
+            </span>
+          </div>
+        ))}
+      </div>
+      
+      {/* Economic Events Timeline */}
+      <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, color: "#fff", marginBottom: 16 }}>
+        Economic Context
+      </h3>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        {ECONOMIC_EVENTS.map((evt, i) => (
+          <button key={i} onClick={() => onSelectYear(evt.year)} style={{
+            background: evt.type === "recession" ? "rgba(239,68,68,0.12)" :
+              evt.type === "bubble" ? "rgba(245,158,11,0.12)" :
+              evt.type === "pandemic" ? "rgba(168,85,247,0.12)" :
+              evt.type === "boom" ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.08)",
+            border: `1px solid ${evt.type === "recession" ? "rgba(239,68,68,0.25)" :
+              evt.type === "bubble" ? "rgba(245,158,11,0.25)" :
+              evt.type === "pandemic" ? "rgba(168,85,247,0.25)" :
+              "rgba(34,197,94,0.25)"}`,
+            borderRadius: 8, padding: "10px 14px", cursor: "pointer", textAlign: "left",
+          }}>
+            <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)" }}>{evt.year}</div>
+            <div style={{ fontSize: 13, color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{evt.label}</div>
+          </button>
+        ))}
+      </div>
+      
+      {/* Ad Cost Trend */}
+      <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, color: "#fff", margin: "40px 0 16px" }}>
+        Cost of a 30-Second Spot
+      </h3>
+      <div style={{ width: "100%", height: 200 }}>
+        <ResponsiveContainer>
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="year" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
+              interval={4} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+            <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
+              tickLine={false} axisLine={false} tickFormatter={v => `$${v}M`} />
+            <Tooltip formatter={(v) => [`$${v}M`, "Cost per :30"]} contentStyle={{
+              background: "rgba(15,15,20,0.95)", border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: 6, fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 12, color: "#fff"
+            }} />
+            <Area type="monotone" dataKey="cost" stroke="#f59e0b" fill="url(#costGrad)" strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function IndustriesView({ onSelectYear }) {
+  const [selectedIndustry, setSelectedIndustry] = useState(null);
+  
+  // Get all industries sorted by total appearances
+  const industryTotals = {};
+  Object.keys(YEARLY_DATA).forEach(year => {
+    const breakdown = getIndustryBreakdown(parseInt(year));
+    Object.entries(breakdown).forEach(([key, count]) => {
+      industryTotals[key] = (industryTotals[key] || 0) + count;
+    });
+  });
+  const sortedIndustries = Object.entries(industryTotals).sort((a, b) => b[1] - a[1]);
+  const maxTotal = sortedIndustries[0]?.[1] || 1;
+  
+  // Trend data for selected industry
+  const trendData = selectedIndustry ? Object.keys(YEARLY_DATA).map(year => {
+    const y = parseInt(year);
+    const breakdown = getIndustryBreakdown(y);
+    return { year: y, count: breakdown[selectedIndustry] || 0, total: YEARLY_DATA[y].ads.length };
+  }).sort((a, b) => a.year - b.year) : [];
+  
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 1200, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        Industry Rankings
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        Total ad appearances across all tracked Super Bowls. Click any industry to see its trend over time.
+      </p>
+      
+      <div style={{ display: "grid", gridTemplateColumns: selectedIndustry ? "1fr 1fr" : "1fr", gap: 32 }}>
+        <div>
+          {sortedIndustries.map(([key, total], i) => {
+            const ind = INDUSTRIES[key];
+            if (!ind) return null;
+            const pct = (total / maxTotal) * 100;
+            const isSelected = selectedIndustry === key;
+            return (
+              <button key={key} onClick={() => setSelectedIndustry(isSelected ? null : key)} style={{
+                display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "8px 12px",
+                background: isSelected ? "rgba(255,255,255,0.08)" : "transparent",
+                border: "none", borderRadius: 6, cursor: "pointer", textAlign: "left",
+                transition: "background 0.2s ease", marginBottom: 4,
+              }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Mono', monospace", width: 24, textAlign: "right" }}>
+                  {i + 1}
+                </span>
+                <span style={{ fontSize: 16, width: 24 }}>{ind.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                    <span style={{ fontSize: 13, color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>{ind.name}</span>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'DM Mono', monospace" }}>{total}</span>
+                  </div>
+                  <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: ind.color, borderRadius: 2, transition: "width 0.5s ease" }} />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        
+        {selectedIndustry && INDUSTRIES[selectedIndustry] && (
+          <div style={{
+            background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 24,
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <span style={{ fontSize: 28 }}>{INDUSTRIES[selectedIndustry].icon}</span>
+              <div>
+                <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, color: "#fff", margin: 0 }}>
+                  {INDUSTRIES[selectedIndustry].name}
+                </h3>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "2px 0 0" }}>
+                  {industryTotals[selectedIndustry]} total appearances
+                </p>
+              </div>
+            </div>
+            
+            <div style={{ width: "100%", height: 200 }}>
+              <ResponsiveContainer>
+                <AreaChart data={trendData}>
+                  <defs>
+                    <linearGradient id="indGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={INDUSTRIES[selectedIndustry].color} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={INDUSTRIES[selectedIndustry].color} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="year" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} interval={4} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+                  <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{
+                    background: "rgba(15,15,20,0.95)", border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 6, fontSize: 12, color: "#fff"
+                  }} />
+                  <Area type="monotone" dataKey="count" stroke={INDUSTRIES[selectedIndustry].color} fill="url(#indGrad)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8, fontFamily: "'DM Mono', monospace" }}>
+                PEAK YEARS
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {trendData.filter(d => d.count > 0).sort((a, b) => b.count - a.count).slice(0, 5).map(d => (
+                  <button key={d.year} onClick={() => onSelectYear(d.year)} style={{
+                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 6, padding: "6px 10px", cursor: "pointer", color: "#fff",
+                    fontSize: 12, fontFamily: "'DM Sans', system-ui, sans-serif",
+                  }}>
+                    {d.year} <span style={{ color: INDUSTRIES[selectedIndustry].color }}>({d.count})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function YearDetailPanel({ year, onClose }) {
+  const data = YEARLY_DATA[year];
+  if (!data) return null;
+  const topIndustries = getTopIndustriesForYear(year);
+  const totalAds = data.ads.length;
+  const event = ECONOMIC_EVENTS.find(e => e.year === year);
+  
+  const pieData = topIndustries.map(ind => ({
+    name: ind.name, value: ind.count, fill: ind.color,
+  }));
+  
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200, display: "flex", justifyContent: "flex-end",
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+    }} onClick={onClose}>
+      <div style={{
+        width: "min(600px, 90vw)", height: "100vh", overflowY: "auto",
+        background: "#111118", borderLeft: "1px solid rgba(255,255,255,0.1)",
+        padding: "32px 28px",
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+          <div>
+            <div style={{ fontSize: 12, color: "#f59e0b", fontFamily: "'DM Mono', monospace", letterSpacing: 2, marginBottom: 4 }}>
+              SUPER BOWL {data.sb}
+            </div>
+            <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 36, color: "#fff", margin: "0 0 4px" }}>{year}</h2>
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, margin: 0 }}>
+              {data.teams} &middot; {data.network} &middot; ${AD_COSTS[year]}M per :30
+            </p>
+            {event && (
+              <div style={{
+                display: "inline-block", marginTop: 8, padding: "4px 10px", borderRadius: 4,
+                background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)",
+                fontSize: 11, color: "#f59e0b",
+              }}>
+                {event.label}
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{
+            background: "rgba(255,255,255,0.08)", border: "none", borderRadius: 8, width: 36, height: 36,
+            color: "#fff", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>×</button>
+        </div>
+        
+        {/* Pie Chart */}
+        <div style={{ width: "100%", height: 220, marginBottom: 24 }}>
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={85}
+                paddingAngle={2} strokeWidth={0}>
+                {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Pie>
+              <Tooltip contentStyle={{
+                background: "rgba(15,15,20,0.95)", border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 6, fontSize: 12, color: "#fff"
+              }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        
+        {/* Industry Breakdown */}
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 12 }}>
+            INDUSTRY BREAKDOWN ({totalAds} ADS)
+          </h3>
+          {topIndustries.map((ind, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 16 }}>{ind.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, color: "#fff" }}>{ind.name}</span>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: "'DM Mono', monospace" }}>
+                    {ind.count} ({Math.round(ind.count / totalAds * 100)}%)
+                  </span>
+                </div>
+                <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: `${(ind.count / totalAds) * 100}%`, height: "100%", background: ind.color, borderRadius: 2 }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Advertiser List */}
+        <div>
+          <h3 style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 12 }}>
+            ALL ADVERTISERS
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {data.ads.sort((a, b) => a.industry.localeCompare(b.industry)).map((ad, i) => (
+              <div key={i} style={{
+                padding: "5px 10px", borderRadius: 6,
+                background: `${INDUSTRIES[ad.industry]?.color}15`,
+                border: `1px solid ${INDUSTRIES[ad.industry]?.color}30`,
+                fontSize: 12, color: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif",
+              }}>
+                {ad.brand}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExploreView({ onSelectYear }) {
+  const [era, setEra] = useState("all");
+  const years = Object.keys(YEARLY_DATA).map(Number).sort((a, b) => b - a);
+  const filtered = years.filter(y => {
+    if (era === "early") return y >= 1990 && y <= 1999;
+    if (era === "dotcom") return y >= 2000 && y <= 2009;
+    if (era === "social") return y >= 2010 && y <= 2019;
+    if (era === "modern") return y >= 2020;
+    return true;
+  });
+  
+  const eras = [
+    { id: "all", label: "All Years" },
+    { id: "early", label: "1990s" },
+    { id: "dotcom", label: "2000s" },
+    { id: "social", label: "2010s" },
+    { id: "modern", label: "2020s" },
+  ];
+  
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 1200, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        Explore By Year
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 24, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        Click any year to see the complete advertiser breakdown.
+      </p>
+      
+      <div style={{ display: "flex", gap: 8, marginBottom: 32, flexWrap: "wrap" }}>
+        {eras.map(e => (
+          <button key={e.id} onClick={() => setEra(e.id)} style={{
+            background: era === e.id ? "#f59e0b" : "rgba(255,255,255,0.06)",
+            color: era === e.id ? "#000" : "rgba(255,255,255,0.6)",
+            border: "none", padding: "8px 16px", borderRadius: 6, cursor: "pointer",
+            fontSize: 13, fontWeight: 500, transition: "all 0.2s ease",
+          }}>
+            {e.label}
+          </button>
+        ))}
+      </div>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+        {filtered.map(year => {
+          const data = YEARLY_DATA[year];
+          const top3 = getTopIndustriesForYear(year).slice(0, 3);
+          const event = ECONOMIC_EVENTS.find(e => e.year === year);
+          return (
+            <button key={year} onClick={() => onSelectYear(year)} style={{
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10, padding: 16, cursor: "pointer", textAlign: "left",
+              transition: "all 0.2s ease",
+            }}
+            onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(245,158,11,0.3)"; }}
+            onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 24, color: "#fff" }}>{year}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>SB {data.sb} &middot; {data.network}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 20, color: "#f59e0b", fontFamily: "'Instrument Serif', Georgia, serif" }}>{data.ads.length}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>ads</div>
+                </div>
+              </div>
+              {event && (
+                <div style={{
+                  fontSize: 10, color: "#f59e0b", background: "rgba(245,158,11,0.1)",
+                  padding: "2px 6px", borderRadius: 3, display: "inline-block", marginBottom: 6,
+                }}>{event.label}</div>
+              )}
+              <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                {top3.map((ind, i) => (
+                  <div key={i} style={{
+                    fontSize: 10, padding: "3px 6px", borderRadius: 4,
+                    background: `${ind.color}20`, color: `${ind.color}`,
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                  }}>
+                    {ind.icon} {ind.count}
+                  </div>
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InsightsView({ onSelectYear }) {
+  const insights = [
+    {
+      title: "The Rise and Fall of Dot-Coms",
+      description: "In 2000, 17 internet startups flooded the Super Bowl at $2.1M per spot. By 2001, most were bankrupt. Only Monster.com and WebMD survived. It was the most dramatic one-year advertiser wipeout in Super Bowl history.",
+      years: [1999, 2000, 2001],
+      color: "#f43f5e",
+    },
+    {
+      title: "Automotive's Long Decline",
+      description: "Auto brands dominated the 1990s and 2000s with 5-9 spots per year. The 2008 financial crisis began their retreat. By 2025, only Jeep and Ram represented the entire industry — down from 14 brands in 2011.",
+      years: [2011, 2017, 2025],
+      color: "#2563eb",
+    },
+    {
+      title: "The Crypto Bowl (2022)",
+      description: "Four crypto companies — FTX, Crypto.com, Coinbase, and eToro — spent over $25M on Super Bowl ads. Within a year, FTX collapsed in spectacular fashion. By 2023, zero crypto companies advertised.",
+      years: [2022, 2023],
+      color: "#f59e0b",
+    },
+    {
+      title: "Big Tech Moves In",
+      description: "Google's first Super Bowl ad in 2010 marked a turning point. Amazon Alexa became a fixture by 2016. By 2026, tech companies including AI startups represent the fastest-growing advertiser category.",
+      years: [2010, 2016, 2026],
+      color: "#7c3aed",
+    },
+    {
+      title: "The AI Invasion (2024-2026)",
+      description: "Microsoft Copilot debuted in 2024. By 2025, OpenAI and Salesforce AI joined. In 2026, Anthropic, OpenAI, Genspark, Base44, Microsoft Copilot, and Salesforce AI flooded the broadcast — the most AI ads ever in a single game.",
+      years: [2024, 2025, 2026],
+      color: "#6d28d9",
+    },
+    {
+      title: "Health & Pharma Emerge",
+      description: "Virtually absent before 2020, health companies are now major players. Wegovy, Novartis, Hims, and Ro all advertised in 2026 — reflecting America's $400B+ weight-loss drug market and telehealth boom.",
+      years: [2024, 2025, 2026],
+      color: "#dc2626",
+    },
+    {
+      title: "Delivery Wars",
+      description: "Before 2021, zero delivery services had Super Bowl ads. Then Uber Eats, DoorDash, and Instacart all arrived within 2 years, turning food delivery into a Super Bowl staple reflecting pandemic-era consumer habits.",
+      years: [2021, 2022, 2026],
+      color: "#14b8a6",
+    },
+    {
+      title: "Sports Betting Goes Mainstream",
+      description: "After the Supreme Court struck down PASPA in 2018, sports betting companies rushed to the biggest sports broadcast. DraftKings, FanDuel, and BetMGM now fight for Super Bowl airtime annually.",
+      years: [2023, 2024, 2025],
+      color: "#65a30d",
+    },
+  ];
+  
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 900, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        Key Insights
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        What the ads tell us about where money, hype, and confidence are flowing in the American economy.
+      </p>
+      
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {insights.map((insight, i) => (
+          <div key={i} style={{
+            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 12, padding: 24, borderLeft: `3px solid ${insight.color}`,
+          }}>
+            <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 20, color: "#fff", margin: "0 0 8px" }}>
+              {insight.title}
+            </h3>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, margin: "0 0 12px", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              {insight.description}
+            </p>
+            <div style={{ display: "flex", gap: 6 }}>
+              {insight.years.map(y => (
+                <button key={y} onClick={() => onSelectYear(y)} style={{
+                  background: `${insight.color}15`, border: `1px solid ${insight.color}30`,
+                  borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+                  fontSize: 12, color: insight.color, fontFamily: "'DM Mono', monospace",
+                }}>
+                  {y}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN APP
+// ============================================================
+
+function App() {
+  const [showHero, setShowHero] = useState(true);
+  const [activeView, setActiveView] = useState("timeline");
+  const [selectedYear, setSelectedYear] = useState(null);
+  const mainRef = useRef(null);
+  
+  const handleExplore = () => {
+    setShowHero(false);
+    setTimeout(() => {
+      mainRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+  
+  const handleSelectYear = (year) => {
+    setSelectedYear(year);
+    if (showHero) {
+      setShowHero(false);
+    }
+  };
+  
+  return (
+    <div style={{
+      background: "#0a0a0f", color: "#fff", minHeight: "100vh",
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+        body { background: #0a0a0f; }
+        button { font-family: inherit; }
+      `}</style>
+      
+      {showHero && <HeroSection onExplore={handleExplore} />}
+      
+      <div ref={mainRef}>
+        <NavBar activeView={activeView} setActiveView={setActiveView} showNav={!showHero} />
+        
+        {!showHero && (
+          <>
+            {activeView === "timeline" && <TimelineView onSelectYear={handleSelectYear} />}
+            {activeView === "industries" && <IndustriesView onSelectYear={handleSelectYear} />}
+            {activeView === "explore" && <ExploreView onSelectYear={handleSelectYear} />}
+            {activeView === "insights" && <InsightsView onSelectYear={handleSelectYear} />}
+          </>
+        )}
+      </div>
+      
+      {selectedYear && (
+        <YearDetailPanel year={selectedYear} onClose={() => setSelectedYear(null)} />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>
