@@ -822,7 +822,7 @@ function getIndustryBreakdown(year) {
   return counts;
 }
 
-function getTimelineData() {
+function getTimelineData(shownIndustries) {
   return Object.keys(YEARLY_DATA).map(year => {
     const y = parseInt(year);
     const breakdown = getIndustryBreakdown(y);
@@ -831,6 +831,11 @@ function getTimelineData() {
     INDUSTRY_KEYS.forEach(key => {
       entry[key] = breakdown[key] || 0;
     });
+    // Compute OTHER: total minus all shown industries
+    if (shownIndustries) {
+      const shownSum = shownIndustries.reduce((s, key) => s + (breakdown[key] || 0), 0);
+      entry.OTHER = total - shownSum;
+    }
     return entry;
   }).sort((a, b) => a.year - b.year);
 }
@@ -861,20 +866,27 @@ function getTopIndustriesOverall(n = 10) {
 // COMPONENTS
 // ============================================================
 
-const CustomTooltip = ({ active, payload, label, hoveredIndustry }) => {
+const CustomTooltip = ({ active, payload, label, hoveredIndustry, topIndustries }) => {
   if (!active || !payload) return null;
   const data = YEARLY_DATA[label];
   if (!data) return null;
 
-  const ind = hoveredIndustry && INDUSTRIES[hoveredIndustry];
+  const isOther = hoveredIndustry === "OTHER";
+  const ind = !isOther && hoveredIndustry && INDUSTRIES[hoveredIndustry];
+
+  // For OTHER: find brands in industries not in the top shown list
+  const otherBrands = isOther && topIndustries
+    ? data.ads.filter(a => !topIndustries.includes(a.industry))
+    : [];
+
   const hoveredPayload = hoveredIndustry && payload.find(p => p.dataKey === hoveredIndustry);
   const count = hoveredPayload ? hoveredPayload.value : 0;
-  const brands = hoveredIndustry ? data.ads.filter(a => a.industry === hoveredIndustry).map(a => a.brand) : [];
+  const brands = ind ? data.ads.filter(a => a.industry === hoveredIndustry).map(a => a.brand) : [];
 
   return (
     <div style={{
       background: "rgba(15,15,20,0.95)", border: "1px solid rgba(255,255,255,0.15)",
-      borderRadius: 8, padding: "12px 16px", maxWidth: 280, backdropFilter: "blur(10px)"
+      borderRadius: 8, padding: "12px 16px", maxWidth: 300, backdropFilter: "blur(10px)"
     }}>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace", marginBottom: 4 }}>
         Super Bowl {data.sb} ({label}) &middot; {data.network}
@@ -898,6 +910,28 @@ const CustomTooltip = ({ active, payload, label, hoveredIndustry }) => {
                 fontSize: 11, color: "#fff", background: `${ind.color}25`,
                 border: `1px solid ${ind.color}40`, borderRadius: 4, padding: "2px 7px",
               }}>{b}</span>
+            ))}
+          </div>
+        </>
+      ) : isOther && otherBrands.length > 0 ? (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 20 }}>📋</span>
+            <div>
+              <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 18, color: "#fff" }}>
+                Other Industries
+              </div>
+              <div style={{ fontSize: 12, color: "#999", fontFamily: "'DM Mono', monospace" }}>
+                {otherBrands.length} {otherBrands.length === 1 ? "advertiser" : "advertisers"}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {otherBrands.map((a, i) => (
+              <span key={i} style={{
+                fontSize: 11, color: "#fff", background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4, padding: "2px 7px",
+              }}>{a.brand} <span style={{ color: "rgba(255,255,255,0.35)" }}>({INDUSTRIES[a.industry]?.name})</span></span>
             ))}
           </div>
         </>
@@ -1034,9 +1068,10 @@ function NavBar({ activeView, setActiveView, showNav }) {
 }
 
 function TimelineView({ onSelectYear }) {
-  const data = getTimelineData();
-  const topIndustries = getTopIndustriesOverall(8);
+  const topIndustries = getTopIndustriesOverall(12);
+  const data = getTimelineData(topIndustries);
   const [hoveredIndustry, setHoveredIndustry] = useState(null);
+  const OTHER_COLOR = "#555";
 
   return (
     <div style={{ padding: "40px 20px", maxWidth: 1200, margin: "0 auto" }}>
@@ -1055,7 +1090,11 @@ function TimelineView({ onSelectYear }) {
               interval={2} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
             <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
               tickLine={false} axisLine={false} />
-            <Tooltip content={<CustomTooltip hoveredIndustry={hoveredIndustry} />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+            <Tooltip content={<CustomTooltip hoveredIndustry={hoveredIndustry} topIndustries={topIndustries} />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+            <Bar key="OTHER" dataKey="OTHER" stackId="a" fill={OTHER_COLOR}
+              style={{ cursor: "pointer" }}
+              onMouseOver={() => setHoveredIndustry("OTHER")}
+              onMouseOut={() => setHoveredIndustry(null)} />
             {topIndustries.map(key => (
               <Bar key={key} dataKey={key} stackId="a" fill={INDUSTRIES[key].color}
                 radius={key === topIndustries[topIndustries.length - 1] ? [2, 2, 0, 0] : 0}
@@ -1066,7 +1105,7 @@ function TimelineView({ onSelectYear }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", justifyContent: "center", marginBottom: 40 }}>
         {topIndustries.map(key => (
           <div key={key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1076,6 +1115,12 @@ function TimelineView({ onSelectYear }) {
             </span>
           </div>
         ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 2, background: OTHER_COLOR }} />
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            Other
+          </span>
+        </div>
       </div>
       
       {/* Economic Events Timeline */}
