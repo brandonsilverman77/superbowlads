@@ -921,16 +921,24 @@ function getTopIndustriesForYear(year) {
 // Which industries to show in the stacked chart (top ones by total presence)
 function getTopIndustriesOverall(n = 10) {
   const totals = {};
+  const peakInYear = {};
   Object.keys(YEARLY_DATA).forEach(year => {
     const breakdown = getIndustryBreakdown(parseInt(year));
     Object.entries(breakdown).forEach(([key, count]) => {
       totals[key] = (totals[key] || 0) + count;
+      peakInYear[key] = Math.max(peakInYear[key] || 0, count);
     });
   });
-  return Object.entries(totals)
+  // Start with top N by total appearances
+  const topByTotal = Object.entries(totals)
     .sort((a, b) => b[1] - a[1])
     .slice(0, n)
     .map(([key]) => key);
+  // Also include any industry that had 3+ ads in a single year (surge industries)
+  const surgeIndustries = Object.entries(peakInYear)
+    .filter(([key, peak]) => peak >= 3 && !topByTotal.includes(key))
+    .map(([key]) => key);
+  return [...topByTotal, ...surgeIndustries];
 }
 
 // ============================================================
