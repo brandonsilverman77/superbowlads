@@ -1101,15 +1101,36 @@ function HeroSection({ onExplore }) {
 }
 
 function NavBar({ activeView, setActiveView, showNav }) {
-  const views = [
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const mainViews = [
     { id: "timeline", label: "Timeline" },
     { id: "industries", label: "Industries" },
-    { id: "bubbles", label: "Bubble Detector" },
-    { id: "graveyard", label: "Graveyard" },
     { id: "explore", label: "By Year" },
     { id: "insights", label: "Insights" },
   ];
-  
+
+  const moreViews = [
+    { id: "bubbles", label: "Bubble Detector", icon: "📡" },
+    { id: "graveyard", label: "Graveyard", icon: "🪦" },
+    { id: "sp500", label: "Ads vs. S&P 500", icon: "📈" },
+    { id: "survivors", label: "Survivors vs. One-Hits", icon: "🏆" },
+  ];
+
+  const isMoreActive = moreViews.some(v => v.id === activeView);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   return (
     <div style={{
       position: "sticky", top: 0, zIndex: 100, background: "rgba(10,10,15,0.9)",
@@ -1122,9 +1143,9 @@ function NavBar({ activeView, setActiveView, showNav }) {
         <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 18, color: "#fff", padding: "14px 0" }}>
           SB Ad<span style={{ color: "#f59e0b" }}>Economy</span>
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
-          {views.map(v => (
-            <button key={v.id} onClick={() => setActiveView(v.id)} style={{
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {mainViews.map(v => (
+            <button key={v.id} onClick={() => { setActiveView(v.id); setDropdownOpen(false); }} style={{
               background: activeView === v.id ? "rgba(245,158,11,0.15)" : "transparent",
               color: activeView === v.id ? "#f59e0b" : "rgba(255,255,255,0.5)",
               border: "none", padding: "10px 16px", borderRadius: 6, cursor: "pointer",
@@ -1134,6 +1155,47 @@ function NavBar({ activeView, setActiveView, showNav }) {
               {v.label}
             </button>
           ))}
+
+          {/* More Analysis dropdown */}
+          <div ref={dropdownRef} style={{ position: "relative" }}>
+            <button onClick={() => setDropdownOpen(!dropdownOpen)} style={{
+              background: isMoreActive ? "rgba(245,158,11,0.15)" : dropdownOpen ? "rgba(255,255,255,0.08)" : "transparent",
+              color: isMoreActive ? "#f59e0b" : "rgba(255,255,255,0.5)",
+              border: "none", padding: "10px 16px", borderRadius: 6, cursor: "pointer",
+              fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 500,
+              transition: "all 0.2s ease", display: "flex", alignItems: "center", gap: 4,
+            }}>
+              More Analysis
+              <span style={{ fontSize: 8, marginLeft: 2, transition: "transform 0.2s ease", display: "inline-block", transform: dropdownOpen ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+            </button>
+
+            {dropdownOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0,
+                background: "rgba(18,18,25,0.98)", border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 10, padding: 6, minWidth: 220,
+                backdropFilter: "blur(20px)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+              }}>
+                {moreViews.map(v => (
+                  <button key={v.id} onClick={() => { setActiveView(v.id); setDropdownOpen(false); }} style={{
+                    display: "flex", alignItems: "center", gap: 10, width: "100%",
+                    background: activeView === v.id ? "rgba(245,158,11,0.12)" : "transparent",
+                    color: activeView === v.id ? "#f59e0b" : "rgba(255,255,255,0.7)",
+                    border: "none", padding: "10px 14px", borderRadius: 6, cursor: "pointer",
+                    fontSize: 13, fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 500,
+                    textAlign: "left", transition: "background 0.15s ease",
+                  }}
+                  onMouseOver={e => { if (activeView !== v.id) e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                  onMouseOut={e => { if (activeView !== v.id) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ fontSize: 16 }}>{v.icon}</span>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -2060,6 +2122,385 @@ function GraveyardView({ onSelectYear }) {
   );
 }
 
+function SP500View({ onSelectYear }) {
+  const years = Object.keys(YEARLY_DATA).map(Number).sort((a, b) => a - b);
+
+  const chartData = years.map(y => {
+    const total = YEARLY_DATA[y].ads.length;
+    return {
+      year: y,
+      cost: AD_COSTS[y] || 0,
+      sp500: SP500_RETURNS[y] !== undefined ? SP500_RETURNS[y] : null,
+      ads: total,
+    };
+  });
+
+  // Find years where new industries debuted with 3+ ads
+  const bubbleYears = { 2000: "Dot-Com Peak", 2022: "Crypto Bowl", 2026: "AI Flood" };
+
+  const CustomSP500Tooltip = ({ active, payload, label }) => {
+    if (!active || !payload || !payload.length) return null;
+    const data = YEARLY_DATA[label];
+    if (!data) return null;
+    const sp = SP500_RETURNS[label];
+    const cost = AD_COSTS[label];
+    const bubble = bubbleYears[label];
+    return (
+      <div style={{
+        background: "rgba(15,15,20,0.95)", border: "1px solid rgba(255,255,255,0.15)",
+        borderRadius: 8, padding: "12px 16px", maxWidth: 260, backdropFilter: "blur(10px)"
+      }}>
+        <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 18, color: "#fff", marginBottom: 4 }}>
+          {label}
+        </div>
+        {bubble && <div style={{ fontSize: 11, color: "#f59e0b", marginBottom: 6 }}>{bubble}</div>}
+        <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+          <div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>AD COST</div>
+            <div style={{ fontSize: 16, color: "#f59e0b", fontWeight: 600 }}>${cost}M</div>
+          </div>
+          {sp !== null && sp !== undefined && (
+            <div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>S&P 500</div>
+              <div style={{ fontSize: 16, color: sp >= 0 ? "#22c55e" : "#ef4444", fontWeight: 600 }}>{sp >= 0 ? "+" : ""}{sp.toFixed(1)}%</div>
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>ADS</div>
+            <div style={{ fontSize: 16, color: "#fff", fontWeight: 600 }}>{data.ads.length}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Compute correlation
+  const paired = chartData.filter(d => d.sp500 !== null);
+  const n = paired.length;
+  const meanCost = paired.reduce((s, d) => s + d.cost, 0) / n;
+  const meanSP = paired.reduce((s, d) => s + d.sp500, 0) / n;
+  const num = paired.reduce((s, d) => s + (d.cost - meanCost) * (d.sp500 - meanSP), 0);
+  const den = Math.sqrt(paired.reduce((s, d) => s + (d.cost - meanCost) ** 2, 0) * paired.reduce((s, d) => s + (d.sp500 - meanSP) ** 2, 0));
+  const correlation = den > 0 ? (num / den).toFixed(2) : "N/A";
+
+  // Down years
+  const downYears = paired.filter(d => d.sp500 < 0);
+
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 1100, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        Ads vs. the S&P 500
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, fontFamily: "'DM Sans', system-ui, sans-serif", lineHeight: 1.7 }}>
+        Super Bowl ad prices only go up — even when the stock market crashes. Here's how the cost of a :30 spot compares to the S&P 500's annual return.
+      </p>
+
+      {/* Dual-axis chart */}
+      <div style={{ width: "100%", height: 380, marginBottom: 20 }}>
+        <ResponsiveContainer>
+          <BarChart data={chartData} onClick={(e) => e && e.activeLabel && onSelectYear(e.activeLabel)}>
+            <defs>
+              <linearGradient id="spGreen" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#22c55e" stopOpacity={0.8} />
+                <stop offset="100%" stopColor="#22c55e" stopOpacity={0.3} />
+              </linearGradient>
+              <linearGradient id="spRed" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ef4444" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity={0.8} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="year" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
+              interval={2} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+            <YAxis yAxisId="left" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
+              tickLine={false} axisLine={false} tickFormatter={v => `$${v}M`}
+              label={{ value: "Ad Cost", angle: -90, position: "insideLeft", fill: "rgba(255,255,255,0.3)", fontSize: 11 }} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
+              tickLine={false} axisLine={false} tickFormatter={v => `${v}%`}
+              label={{ value: "S&P 500", angle: 90, position: "insideRight", fill: "rgba(255,255,255,0.3)", fontSize: 11 }} />
+            <Tooltip content={<CustomSP500Tooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+            <Bar yAxisId="right" dataKey="sp500" radius={[2, 2, 0, 0]} style={{ cursor: "pointer" }}>
+              {chartData.map((entry, i) => (
+                <Cell key={i} fill={entry.sp500 >= 0 ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.5)"} />
+              ))}
+            </Bar>
+            <Line yAxisId="left" type="monotone" dataKey="cost" stroke="#f59e0b" strokeWidth={3} dot={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 24, justifyContent: "center", marginBottom: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 24, height: 3, background: "#f59e0b", borderRadius: 2 }} />
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Ad cost per :30</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 12, height: 12, background: "rgba(34,197,94,0.4)", borderRadius: 2 }} />
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>S&P 500 up year</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 12, height: 12, background: "rgba(239,68,68,0.5)", borderRadius: 2 }} />
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>S&P 500 down year</span>
+        </div>
+      </div>
+
+      {/* Key findings */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 8 }}>
+            KEY FINDING
+          </div>
+          <h4 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 20, color: "#fff", margin: "0 0 8px" }}>
+            Ad Prices Never Crash
+          </h4>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
+            Ad cost per :30 has gone from $0.7M to $8M since 1990 — a 1,043% increase. Even during the 2008 financial crisis (S&P down 37%), ad prices only dipped briefly before resuming their climb.
+          </p>
+        </div>
+
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 8 }}>
+            CORRELATION
+          </div>
+          <h4 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 20, color: "#fff", margin: "0 0 8px" }}>
+            r = {correlation}
+          </h4>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
+            Weak correlation between ad prices and S&P 500 returns. Ad prices are driven by scarcity and prestige, not stock market performance — they're a lagging indicator of corporate confidence, not market direction.
+          </p>
+        </div>
+
+        <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 8 }}>
+            DOWN YEARS
+          </div>
+          <h4 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 20, color: "#ef4444", margin: "0 0 8px" }}>
+            {downYears.length} Market Crashes
+          </h4>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {downYears.map((d, i) => (
+              <button key={i} onClick={() => onSelectYear(d.year)} style={{
+                background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)",
+                borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+                fontSize: 12, color: "#ef4444", fontFamily: "'DM Mono', monospace",
+              }}>
+                {d.year}: {d.sp500.toFixed(1)}%
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SurvivorsView({ onSelectYear }) {
+  // Calculate brand appearances across all years
+  const brandAppearances = {};
+  const brandIndustry = {};
+  Object.entries(YEARLY_DATA).forEach(([year, data]) => {
+    const y = parseInt(year);
+    data.ads.forEach(ad => {
+      if (!brandAppearances[ad.brand]) brandAppearances[ad.brand] = [];
+      brandAppearances[ad.brand].push(y);
+      brandIndustry[ad.brand] = ad.industry;
+    });
+  });
+
+  // Sort by appearance count
+  const allBrands = Object.entries(brandAppearances)
+    .map(([brand, years]) => ({
+      brand,
+      count: years.length,
+      years: years.sort((a, b) => a - b),
+      industry: brandIndustry[brand],
+      first: Math.min(...years),
+      last: Math.max(...years),
+      span: Math.max(...years) - Math.min(...years),
+      // Calculate longest consecutive streak
+      streak: (() => {
+        const sorted = years.sort((a, b) => a - b);
+        let maxStreak = 1, current = 1;
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i] === sorted[i-1] + 1) { current++; maxStreak = Math.max(maxStreak, current); }
+          else { current = 1; }
+        }
+        return maxStreak;
+      })(),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const survivors = allBrands.filter(b => b.count >= 10);
+  const oneHits = allBrands.filter(b => b.count === 1);
+  const deadOneHits = oneHits.filter(b => GRAVEYARD_DATA.some(g => g.brand === b.brand));
+
+  const [tab, setTab] = useState("survivors");
+
+  // For the timeline visualization of survivors
+  const allYears = Object.keys(YEARLY_DATA).map(Number).sort((a, b) => a - b);
+  const minYear = allYears[0];
+  const maxYear = allYears[allYears.length - 1];
+
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 1100, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        Survivors vs. One-Hit Wonders
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, fontFamily: "'DM Sans', system-ui, sans-serif", lineHeight: 1.7 }}>
+        Some brands have been Super Bowl fixtures for 30+ years. Others appeared once and vanished — sometimes along with the company itself.
+      </p>
+
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 32 }}>
+        {[
+          { n: allBrands.length, label: "Total Brands", color: "#fff" },
+          { n: survivors.length, label: "10+ Years", sub: "the perennials", color: "#22c55e" },
+          { n: oneHits.length, label: "One-Hit Wonders", sub: "appeared once", color: "#f59e0b" },
+          { n: deadOneHits.length, label: "One & Done", sub: "appeared once, now dead", color: "#ef4444" },
+        ].map((s, i) => (
+          <div key={i} style={{
+            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 10, padding: "16px 14px", textAlign: "center",
+          }}>
+            <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, color: s.color }}>{s.n}</div>
+            <div style={{ fontSize: 12, color: "#fff", fontWeight: 500, marginTop: 2 }}>{s.label}</div>
+            {s.sub && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Mono', monospace" }}>{s.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* Tab toggle */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {[
+          { id: "survivors", label: "🏆 Survivors (10+ years)" },
+          { id: "onehits", label: "💀 One-Hit Wonders" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            background: tab === t.id ? (t.id === "survivors" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)") : "rgba(255,255,255,0.04)",
+            color: tab === t.id ? (t.id === "survivors" ? "#22c55e" : "#ef4444") : "rgba(255,255,255,0.5)",
+            border: `1px solid ${tab === t.id ? (t.id === "survivors" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)") : "rgba(255,255,255,0.08)"}`,
+            padding: "10px 18px", borderRadius: 8, cursor: "pointer",
+            fontSize: 13, fontWeight: 600,
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "survivors" ? (
+        <div>
+          {/* Survivor timeline strips */}
+          {survivors.map((brand, i) => {
+            const ind = INDUSTRIES[brand.industry];
+            return (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 12, padding: "10px 0",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+              }}>
+                {/* Rank + Name */}
+                <div style={{ width: 180, flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Mono', monospace", width: 20, textAlign: "right" }}>
+                    {i + 1}
+                  </span>
+                  <div>
+                    <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>{brand.brand}</div>
+                    <div style={{ fontSize: 10, color: ind?.color || "#888" }}>{ind?.name || brand.industry}</div>
+                  </div>
+                </div>
+
+                {/* Timeline bar */}
+                <div style={{ flex: 1, display: "flex", gap: 1, alignItems: "center" }}>
+                  {allYears.map(y => {
+                    const present = brand.years.includes(y);
+                    return (
+                      <div key={y} style={{
+                        flex: 1, height: present ? 16 : 4,
+                        background: present ? (ind?.color || "#888") : "rgba(255,255,255,0.04)",
+                        borderRadius: 1,
+                        cursor: present ? "pointer" : "default",
+                        transition: "height 0.2s ease",
+                      }}
+                      title={present ? `${brand.brand} — ${y}` : ""}
+                      onClick={() => present && onSelectYear(y)}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Count */}
+                <div style={{ width: 45, textAlign: "right", flexShrink: 0 }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: "#22c55e", fontFamily: "'Instrument Serif', Georgia, serif" }}>
+                    {brand.count}
+                  </span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginLeft: 2 }}>yr</span>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Year axis labels */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0 0", marginLeft: 180 + 12 }}>
+            <div style={{ flex: 1, display: "flex", justifyContent: "space-between" }}>
+              {allYears.filter((y, i) => i % 5 === 0).map(y => (
+                <span key={y} style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'DM Mono', monospace" }}>{y}</span>
+              ))}
+            </div>
+            <div style={{ width: 45 }} />
+          </div>
+        </div>
+      ) : (
+        <div>
+          {/* One-hit wonders grouped by decade */}
+          {[
+            { label: "1990s", range: [1990, 1999] },
+            { label: "2000s", range: [2000, 2009] },
+            { label: "2010s", range: [2010, 2019] },
+            { label: "2020s", range: [2020, 2029] },
+          ].map(decade => {
+            const decadeHits = oneHits.filter(b => b.first >= decade.range[0] && b.first <= decade.range[1]);
+            if (decadeHits.length === 0) return null;
+            return (
+              <div key={decade.label} style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 12, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 10 }}>
+                  {decade.label} — {decadeHits.length} ONE-HIT WONDERS
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {decadeHits.sort((a, b) => a.first - b.first).map((brand, i) => {
+                    const ind = INDUSTRIES[brand.industry];
+                    const isDead = GRAVEYARD_DATA.some(g => g.brand === brand.brand);
+                    return (
+                      <button key={i} onClick={() => onSelectYear(brand.first)} style={{
+                        background: isDead ? "rgba(239,68,68,0.08)" : `${ind?.color || "#888"}10`,
+                        border: `1px solid ${isDead ? "rgba(239,68,68,0.25)" : (ind?.color || "#888") + "30"}`,
+                        borderRadius: 6, padding: "6px 10px", cursor: "pointer",
+                        fontSize: 12, color: isDead ? "#ef4444" : "#fff",
+                        display: "flex", alignItems: "center", gap: 5,
+                      }}>
+                        {isDead && <span style={{ fontSize: 10 }}>💀</span>}
+                        {brand.brand}
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>({brand.first})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          <div style={{
+            marginTop: 20, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
+            borderRadius: 10, padding: 16,
+          }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+              💀 = company is now defunct or bankrupt. One-hit wonders are disproportionately represented in the Graveyard — companies that can only afford one year of Super Bowl ads are often spending money they don't have.
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // MAIN APP
 // ============================================================
@@ -2108,10 +2549,12 @@ function App() {
           <>
             {activeView === "timeline" && <TimelineView onSelectYear={handleSelectYear} />}
             {activeView === "industries" && <IndustriesView onSelectYear={handleSelectYear} />}
-            {activeView === "bubbles" && <BubbleDetectorView onSelectYear={handleSelectYear} />}
-            {activeView === "graveyard" && <GraveyardView onSelectYear={handleSelectYear} />}
             {activeView === "explore" && <ExploreView onSelectYear={handleSelectYear} />}
             {activeView === "insights" && <InsightsView onSelectYear={handleSelectYear} />}
+            {activeView === "bubbles" && <BubbleDetectorView onSelectYear={handleSelectYear} />}
+            {activeView === "graveyard" && <GraveyardView onSelectYear={handleSelectYear} />}
+            {activeView === "sp500" && <SP500View onSelectYear={handleSelectYear} />}
+            {activeView === "survivors" && <SurvivorsView onSelectYear={handleSelectYear} />}
           </>
         )}
       </div>
