@@ -1660,30 +1660,47 @@ function InsightsView({ onSelectYear }) {
 }
 
 function BubbleDetectorView({ onSelectYear }) {
-  // Build chart data: for each bubble wave, show ad count per year
   const years = Object.keys(YEARLY_DATA).map(Number).sort((a, b) => a - b);
 
-  const chartData = years.map(y => {
-    const breakdown = getIndustryBreakdown(y);
-    const entry = { year: y };
-    BUBBLE_WAVES.forEach(bw => {
-      // Count ads for this bubble's industry
-      entry[bw.industry] = breakdown[bw.industry] || 0;
-      // Also count AI industry separately since it's a new key
-      if (bw.industry === "AI") {
-        entry[bw.industry] = (breakdown["AI"] || 0) + (breakdown["TECH"] && y >= 2024 ? 0 : 0);
-      }
-    });
-    entry.sp500 = SP500_RETURNS[y] || null;
-    return entry;
-  });
+  // Get the actual brands for a wave's industry in a given year
+  const getBrands = (industry, year) => {
+    const data = YEARLY_DATA[year];
+    if (!data) return [];
+    return data.ads.filter(a => a.industry === industry).map(a => a.brand);
+  };
 
-  // Compute industry count per year for each bubble wave for the pattern viz
-  const getWaveData = (wave) => {
-    return years.map(y => {
+  // Build lifecycle phases for each wave
+  const getPhases = (wave) => {
+    const phases = [];
+    // Before
+    if (wave.firstYear > 1990) {
+      phases.push({ label: "Before", year: wave.firstYear - 1, count: 0, type: "before",
+        desc: `Zero ${INDUSTRIES[wave.industry]?.name || wave.industry} ads in the Super Bowl` });
+    }
+    // Each active year
+    for (let y = wave.firstYear; y <= (wave.bustYear || 2026); y++) {
       const breakdown = getIndustryBreakdown(y);
-      return { year: y, count: breakdown[wave.industry] || 0 };
-    }).filter(d => d.year >= wave.firstYear - 2 && d.year <= (wave.bustYear || 2026) + 1);
+      const count = breakdown[wave.industry] || 0;
+      if (count > 0 || y === wave.peakYear || y === wave.bustYear) {
+        const brands = getBrands(wave.industry, y);
+        const isPeak = y === wave.peakYear;
+        const isBust = wave.bustYear && y >= wave.bustYear && count === 0;
+        phases.push({
+          label: isPeak ? "PEAK" : isBust ? "Gone" : y.toString(),
+          year: y, count, brands, type: isPeak ? "peak" : isBust ? "bust" : "active",
+          desc: isPeak ? `${count} advertisers flood the Super Bowl` : isBust ? "Zero ads. The wave is over." : `${count} ${count === 1 ? "advertiser" : "advertisers"}`,
+        });
+      }
+    }
+    // After (if busted)
+    if (wave.bustYear) {
+      const afterCount = getIndustryBreakdown(wave.bustYear)?.[wave.industry] || 0;
+      if (afterCount === 0) {
+        phases[phases.length - 1] = { ...phases[phases.length - 1], type: "bust",
+          label: wave.bustYear.toString(), desc: "Zero ads. The wave is over." };
+      }
+    }
+    return phases;
   };
 
   return (
@@ -1699,93 +1716,126 @@ function BubbleDetectorView({ onSelectYear }) {
         Sources: Acadian Asset Management, TheStreet, SlickCharts S&P 500 data
       </p>
 
-      {/* The three bubble waves */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
         {BUBBLE_WAVES.map((wave, wi) => {
-          const waveData = getWaveData(wave);
-          const maxCount = Math.max(...waveData.map(d => d.count), 1);
+          const phases = getPhases(wave);
+          const maxCount = Math.max(...phases.map(p => p.count), 1);
           return (
-            <div key={wi} style={{
-              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 16, padding: 28, position: "relative", overflow: "hidden",
-            }}>
-              {/* Accent stripe */}
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: wave.color }} />
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 16 }}>
+            <div key={wi}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: wave.color, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>
                     {wave.bustYear ? "Confirmed Pattern" : "Active — Watch Closely"}
                   </div>
-                  <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, color: "#fff", margin: "0 0 6px" }}>
+                  <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 28, color: "#fff", margin: 0 }}>
                     {wave.label}
                   </h3>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-                    First appeared: {wave.firstYear} &middot; Peak: {wave.peakYear} ({wave.peakAds} ads)
-                    {wave.bustYear && <> &middot; Gone by: {wave.bustYear}</>}
-                  </div>
                 </div>
-                <div style={{
-                  background: `${wave.color}15`, border: `1px solid ${wave.color}30`,
-                  borderRadius: 10, padding: "10px 16px", textAlign: "center",
-                }}>
-                  <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 28, color: wave.color }}>
-                    {wave.peakAds}
-                  </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>
-                    PEAK ADS
-                  </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>
+                  {wave.marketImpact}
                 </div>
               </div>
 
-              {/* Mini bar chart showing the wave */}
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80, marginBottom: 16, padding: "0 4px" }}>
-                {waveData.map((d, i) => {
-                  const h = maxCount > 0 ? (d.count / maxCount) * 100 : 0;
-                  const isPeak = d.year === wave.peakYear;
+              {/* Timeline phases */}
+              <div style={{ display: "flex", gap: 0, marginBottom: 20 }}>
+                {phases.map((phase, pi) => {
+                  const widthPct = phase.type === "peak" ? 40 : phase.type === "before" ? 12 : phase.type === "bust" ? 15 : 100 / phases.length;
+                  const barHeight = maxCount > 0 ? Math.max((phase.count / maxCount) * 120, phase.count > 0 ? 20 : 0) : 0;
                   return (
-                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div key={pi} style={{
+                      flex: phase.type === "peak" ? 3 : phase.type === "bust" ? 1.2 : phase.type === "before" ? 0.8 : 1.5,
+                      display: "flex", flexDirection: "column",
+                    }}>
+                      {/* Bar + count */}
                       <div style={{
-                        fontSize: 9, color: isPeak ? wave.color : "rgba(255,255,255,0.4)",
-                        fontFamily: "'DM Mono', monospace", fontWeight: isPeak ? 700 : 400,
+                        height: 140, display: "flex", flexDirection: "column", justifyContent: "flex-end",
+                        alignItems: "center", paddingBottom: 4,
                       }}>
-                        {d.count > 0 ? d.count : ""}
+                        {phase.count > 0 && (
+                          <div style={{
+                            fontSize: 18, fontWeight: 700, color: phase.type === "peak" ? wave.color : "rgba(255,255,255,0.6)",
+                            fontFamily: "'Instrument Serif', Georgia, serif", marginBottom: 4,
+                          }}>
+                            {phase.count}
+                          </div>
+                        )}
+                        <div style={{
+                          width: phase.type === "peak" ? "80%" : "60%",
+                          height: barHeight,
+                          background: phase.type === "peak" ? wave.color :
+                            phase.type === "bust" ? "rgba(255,255,255,0.06)" :
+                            phase.type === "before" ? "rgba(255,255,255,0.06)" :
+                            `${wave.color}60`,
+                          borderRadius: "4px 4px 0 0",
+                          cursor: phase.count > 0 ? "pointer" : "default",
+                          transition: "all 0.3s ease",
+                          position: "relative",
+                        }}
+                        onClick={() => phase.count > 0 && onSelectYear(phase.year)}
+                        >
+                          {phase.type === "bust" && (
+                            <div style={{
+                              position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 20, color: "rgba(255,255,255,0.15)",
+                            }}>0</div>
+                          )}
+                          {phase.type === "before" && (
+                            <div style={{
+                              position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 16, color: "rgba(255,255,255,0.12)",
+                            }}>0</div>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Year label */}
                       <div style={{
-                        width: "100%", maxWidth: 40,
-                        height: `${Math.max(h, d.count > 0 ? 8 : 2)}%`,
-                        background: d.count > 0 ? (isPeak ? wave.color : `${wave.color}80`) : "rgba(255,255,255,0.05)",
-                        borderRadius: "3px 3px 0 0",
-                        transition: "height 0.5s ease",
-                        cursor: d.count > 0 ? "pointer" : "default",
-                      }}
-                      onClick={() => d.count > 0 && onSelectYear(d.year)}
-                      />
-                      <div style={{
-                        fontSize: 9, color: isPeak ? "#fff" : "rgba(255,255,255,0.3)",
-                        fontFamily: "'DM Mono', monospace",
+                        textAlign: "center", padding: "8px 4px",
+                        borderTop: `2px solid ${phase.type === "peak" ? wave.color : "rgba(255,255,255,0.1)"}`,
                       }}>
-                        {d.year.toString().slice(2)}
+                        <div style={{
+                          fontSize: phase.type === "peak" ? 13 : 11,
+                          fontFamily: "'DM Mono', monospace",
+                          fontWeight: phase.type === "peak" ? 700 : 400,
+                          color: phase.type === "peak" ? wave.color : phase.type === "bust" ? "#ef4444" : "rgba(255,255,255,0.5)",
+                        }}>
+                          {phase.type === "peak" ? `${phase.year} — PEAK` : phase.type === "bust" ? `${phase.year}` : phase.year}
+                        </div>
+                        <div style={{
+                          fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2,
+                        }}>
+                          {phase.desc}
+                        </div>
                       </div>
+
+                      {/* Brand pills (peak only) */}
+                      {phase.type === "peak" && phase.brands && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", padding: "8px 4px 0" }}>
+                          {phase.brands.map((b, bi) => (
+                            <span key={bi} style={{
+                              fontSize: 10, color: "#fff", background: `${wave.color}25`,
+                              border: `1px solid ${wave.color}40`, borderRadius: 4, padding: "2px 7px",
+                            }}>{b}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
-              {/* Aftermath */}
+              {/* Aftermath box */}
               <div style={{
-                background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 16, marginBottom: 12,
+                background: "rgba(0,0,0,0.3)", borderRadius: 10, padding: "16px 20px",
+                borderLeft: `3px solid ${wave.bustYear ? "#ef4444" : wave.color}`,
               }}>
                 <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 6 }}>
-                  WHAT HAPPENED NEXT
+                  {wave.bustYear ? "WHAT HAPPENED NEXT" : "WHERE WE ARE NOW"}
                 </div>
                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.7, margin: 0 }}>
                   {wave.aftermath}
                 </p>
-              </div>
-
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>
-                {wave.marketImpact}
               </div>
             </div>
           );
@@ -1794,28 +1844,32 @@ function BubbleDetectorView({ onSelectYear }) {
 
       {/* The pattern */}
       <div style={{
-        marginTop: 48, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
+        marginTop: 56, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
         borderRadius: 16, padding: 28,
       }}>
-        <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, color: "#fff", marginBottom: 12 }}>
+        <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, color: "#fff", marginBottom: 16 }}>
           The Pattern
         </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
+        <div style={{ display: "flex", gap: 0, position: "relative" }}>
+          {/* Connecting line */}
+          <div style={{ position: "absolute", top: 19, left: 20, right: 20, height: 2, background: "rgba(245,158,11,0.2)" }} />
           {[
-            { step: "1", label: "New industry appears", desc: "1-2 companies test the waters with a debut Super Bowl ad" },
-            { step: "2", label: "The flood", desc: "Within 1-2 years, the category explodes to 4-17 ads in a single game" },
-            { step: "3", label: "Peak hype", desc: "Super Bowl ad spending signals maximum euphoria, not the start of growth" },
-            { step: "4", label: "The crash", desc: "Most advertisers bankrupt or gone within 12-18 months of peak" },
+            { step: "1", label: "Debut", desc: "1-2 companies test the waters with a Super Bowl ad" },
+            { step: "2", label: "The Flood", desc: "Within 1-2 years, the category explodes to 4-17 ads" },
+            { step: "3", label: "Peak Hype", desc: "Maximum euphoria. Retail investors pile in." },
+            { step: "4", label: "The Crash", desc: "Most advertisers bankrupt or gone within 12-18 months" },
           ].map((s, i) => (
-            <div key={i}>
+            <div key={i} style={{ flex: 1, textAlign: "center", position: "relative", zIndex: 1 }}>
               <div style={{
-                width: 28, height: 28, borderRadius: "50%", background: "rgba(245,158,11,0.2)",
+                width: 38, height: 38, borderRadius: "50%",
+                background: i === 3 ? "#ef4444" : i === 2 ? "#f59e0b" : "rgba(245,158,11,0.3)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 13, color: "#f59e0b", fontFamily: "'DM Mono', monospace", fontWeight: 700,
-                marginBottom: 8,
+                fontSize: 15, color: i >= 2 ? "#fff" : "#f59e0b", fontFamily: "'DM Mono', monospace", fontWeight: 700,
+                margin: "0 auto 10px",
+                border: `2px solid ${i === 3 ? "#ef4444" : "#f59e0b"}`,
               }}>{s.step}</div>
-              <div style={{ fontSize: 14, color: "#fff", fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>{s.desc}</div>
+              <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, padding: "0 8px" }}>{s.desc}</div>
             </div>
           ))}
         </div>
