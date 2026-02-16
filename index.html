@@ -808,6 +808,77 @@ const ECONOMIC_EVENTS = [
   { year: 2026, label: "AI Dominates + GLP-1 Wave", type: "boom" },
 ];
 
+// Bubble wave data: when a new industry suddenly floods the Super Bowl
+const BUBBLE_WAVES = [
+  {
+    industry: "DOTCOM",
+    label: "Dot-Com Bubble",
+    color: "#f43f5e",
+    firstYear: 1999,
+    peakYear: 2000,
+    peakAds: 17,
+    bustYear: 2002,
+    aftermath: "Nasdaq crashed 78%. Of 17 dot-com advertisers in 2000, most were bankrupt within 18 months. Only Monster.com and WebMD survived long-term.",
+    marketImpact: "S&P 500: -9.1% (2000), -11.9% (2001), -22.1% (2002)",
+  },
+  {
+    industry: "CRYPTO",
+    label: "Crypto Bowl",
+    color: "#f59e0b",
+    firstYear: 2022,
+    peakYear: 2022,
+    peakAds: 4,
+    bustYear: 2023,
+    aftermath: "FTX bankrupt within 9 months. Founder Sam Bankman-Fried sentenced to 25 years. Crypto winter wiped $2T in value. Zero crypto ads in 2023.",
+    marketImpact: "S&P 500: -18.1% (2022). Bitcoin fell from $43K to $16K.",
+  },
+  {
+    industry: "AI",
+    label: "AI Boom",
+    color: "#6d28d9",
+    firstYear: 2024,
+    peakYear: 2026,
+    peakAds: 8,
+    bustYear: null,
+    aftermath: "Too early to tell. 8 AI/software companies in 2026 — the highest single-industry debut since the Dot-Com Bowl. Tech companies committed $650B in AI capex for 2026. OpenAI projected $14B in losses.",
+    marketImpact: "S&P 500: +25.0% (2024), +17.9% (2025). 2026 TBD.",
+  },
+];
+
+// S&P 500 total returns by year (for correlation chart)
+const SP500_RETURNS = {
+  1990: -3.10, 1991: 30.47, 1992: 7.62, 1993: 10.08, 1994: 1.32,
+  1995: 37.58, 1996: 22.96, 1997: 33.36, 1998: 28.58, 1999: 21.04,
+  2000: -9.10, 2001: -11.89, 2002: -22.10, 2003: 28.68, 2004: 10.88,
+  2005: 4.91, 2006: 15.79, 2007: 5.49, 2008: -37.00, 2009: 26.46,
+  2010: 15.06, 2011: 2.11, 2012: 16.00, 2013: 32.39, 2014: 13.69,
+  2015: 1.38, 2016: 11.96, 2017: 21.83, 2018: -4.38, 2019: 31.49,
+  2020: 18.40, 2021: 28.71, 2022: -18.11, 2023: 26.29, 2024: 25.02,
+  2025: 17.88,
+};
+
+// Companies that advertised in the Super Bowl and later went bankrupt/failed
+const GRAVEYARD_DATA = [
+  // Dot-Com Era (2000)
+  { brand: "Pets.com", year: 2000, industry: "DOTCOM", fate: "Bankrupt", timeToFail: "10 months", details: "IPO'd 11 days after the Super Bowl. Spent $1.2M on the ad. Shut down Nov 2000. Stock went from $11 to $0.19.", deathYear: 2000 },
+  { brand: "OurBeginning.com", year: 2000, industry: "DOTCOM", fate: "Bankrupt", timeToFail: "~18 months", details: "Wedding invitation site. Revenue jumped 350% post-ad but ad cost was 10x revenue. Filed Chapter 7 by end of 2001.", deathYear: 2001 },
+  { brand: "LifeMinders.com", year: 2000, industry: "DOTCOM", fate: "Fire sale", timeToFail: "~18 months", details: "Email reminder service. Sold for $68M in 2001 after losing over $100M. Ad was widely panned.", deathYear: 2001 },
+  { brand: "Computer.com", year: 2000, industry: "DOTCOM", fate: "Bankrupt", timeToFail: "~10 months", details: "Spent half its venture capital on the Super Bowl ad. Folded before end of 2000.", deathYear: 2000 },
+  { brand: "Epidemic.com", year: 2000, industry: "DOTCOM", fate: "Bankrupt", timeToFail: "~12 months", details: "Marketing company that didn't survive to the next Super Bowl.", deathYear: 2001 },
+  { brand: "Netpliance", year: 2000, industry: "DOTCOM", fate: "Shut down", timeToFail: "~2 years", details: "Sold 'I-Opener' web appliances at a loss hoping to recoup on subscriptions. Halted hardware production by late 2000, defunct by 2002.", deathYear: 2002 },
+  { brand: "E-Stamp", year: 2000, industry: "DOTCOM", fate: "Acquired/Pivoted", timeToFail: "~12 months", details: "Online postage seller. Merged with Learn2.com in 2001 to pivot to online learning. Original business abandoned.", deathYear: 2001 },
+  { brand: "OnMoney.com", year: 2000, industry: "DOTCOM", fate: "Shut down", timeToFail: "~12 months", details: "Financial planning site. Closed down in 2001 as funding dried up.", deathYear: 2001 },
+  { brand: "LastMinuteTravel.com", year: 2000, industry: "DOTCOM", fate: "Shut down", timeToFail: "~2 years", details: "Travel deals site that couldn't survive the dot-com bust and travel downturn after 9/11.", deathYear: 2002 },
+  { brand: "MicroStrategy", year: 2000, industry: "DOTCOM", fate: "Stock crash", timeToFail: "~2 months", details: "Stock crashed from $313 to $4 after accounting fraud revealed in March 2000. CEO Michael Saylor paid $8.3M SEC settlement.", deathYear: 2000 },
+  // Other eras
+  { brand: "Quibi", year: 2020, industry: "ENTERTAINMENT", fate: "Shut down", timeToFail: "8 months", details: "Short-form streaming service backed by $1.75B. Launched April 2020, shut down October 2020. One of the fastest failures in entertainment history.", deathYear: 2020 },
+  { brand: "FTX", year: 2022, industry: "CRYPTO", fate: "Bankrupt", timeToFail: "9 months", details: "Paid $30M for the ad featuring Larry David. Filed for bankruptcy Nov 2022. Founder SBF sentenced to 25 years for fraud. $8B in customer funds missing.", deathYear: 2022 },
+  { brand: "RadioShack", year: 2014, industry: "RETAIL", fate: "Bankrupt", timeToFail: "12 months", details: "Self-deprecating '80s nostalgia ad was a hit, but couldn't save the chain. Filed Chapter 11 in Feb 2015. Most stores closed.", deathYear: 2015 },
+  { brand: "Napster", year: 2005, industry: "TECH", fate: "Bankrupt", timeToFail: "~3 years", details: "Already on its second life as a legal music service. Filed bankruptcy in 2008. Brand later acquired by Rhapsody.", deathYear: 2008 },
+  { brand: "Cash4Gold", year: 2009, industry: "FINANCE", fate: "Shut down", timeToFail: "~5 years", details: "Mail-in gold buying service widely accused of predatory practices. Faced multiple lawsuits and class actions. Quietly shut down.", deathYear: 2014 },
+  { brand: "SalesGenie", year: 2008, industry: "TECH", fate: "Rebranded", timeToFail: "~5 years", details: "Super Bowl ads were pulled after accusations of racial stereotyping. Company was bought by Dun & Bradstreet, brand dissolved.", deathYear: 2013 },
+];
+
 // ============================================================
 // UTILITY FUNCTIONS
 // ============================================================
@@ -1033,6 +1104,8 @@ function NavBar({ activeView, setActiveView, showNav }) {
   const views = [
     { id: "timeline", label: "Timeline" },
     { id: "industries", label: "Industries" },
+    { id: "bubbles", label: "Bubble Detector" },
+    { id: "graveyard", label: "Graveyard" },
     { id: "explore", label: "By Year" },
     { id: "insights", label: "Insights" },
   ];
@@ -1586,6 +1659,353 @@ function InsightsView({ onSelectYear }) {
   );
 }
 
+function BubbleDetectorView({ onSelectYear }) {
+  // Build chart data: for each bubble wave, show ad count per year
+  const years = Object.keys(YEARLY_DATA).map(Number).sort((a, b) => a - b);
+
+  const chartData = years.map(y => {
+    const breakdown = getIndustryBreakdown(y);
+    const entry = { year: y };
+    BUBBLE_WAVES.forEach(bw => {
+      // Count ads for this bubble's industry
+      entry[bw.industry] = breakdown[bw.industry] || 0;
+      // Also count AI industry separately since it's a new key
+      if (bw.industry === "AI") {
+        entry[bw.industry] = (breakdown["AI"] || 0) + (breakdown["TECH"] && y >= 2024 ? 0 : 0);
+      }
+    });
+    entry.sp500 = SP500_RETURNS[y] || null;
+    return entry;
+  });
+
+  // Compute industry count per year for each bubble wave for the pattern viz
+  const getWaveData = (wave) => {
+    return years.map(y => {
+      const breakdown = getIndustryBreakdown(y);
+      return { year: y, count: breakdown[wave.industry] || 0 };
+    }).filter(d => d.year >= wave.firstYear - 2 && d.year <= (wave.bustYear || 2026) + 1);
+  };
+
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 1000, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        Bubble Detector
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 12, fontFamily: "'DM Sans', system-ui, sans-serif", lineHeight: 1.7 }}>
+        When a new industry suddenly floods the Super Bowl with ads, it tends to mark the <em style={{ color: "#f59e0b" }}>peak</em> of
+        that industry's hype cycle — not the beginning. Here are the three waves we've tracked.
+      </p>
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginBottom: 40, fontFamily: "'DM Sans', system-ui, sans-serif", fontStyle: "italic" }}>
+        Sources: Acadian Asset Management, TheStreet, SlickCharts S&P 500 data
+      </p>
+
+      {/* The three bubble waves */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+        {BUBBLE_WAVES.map((wave, wi) => {
+          const waveData = getWaveData(wave);
+          const maxCount = Math.max(...waveData.map(d => d.count), 1);
+          return (
+            <div key={wi} style={{
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 16, padding: 28, position: "relative", overflow: "hidden",
+            }}>
+              {/* Accent stripe */}
+              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: wave.color }} />
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: wave.color, letterSpacing: 2, marginBottom: 6, textTransform: "uppercase" }}>
+                    {wave.bustYear ? "Confirmed Pattern" : "Active — Watch Closely"}
+                  </div>
+                  <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, color: "#fff", margin: "0 0 6px" }}>
+                    {wave.label}
+                  </h3>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+                    First appeared: {wave.firstYear} &middot; Peak: {wave.peakYear} ({wave.peakAds} ads)
+                    {wave.bustYear && <> &middot; Gone by: {wave.bustYear}</>}
+                  </div>
+                </div>
+                <div style={{
+                  background: `${wave.color}15`, border: `1px solid ${wave.color}30`,
+                  borderRadius: 10, padding: "10px 16px", textAlign: "center",
+                }}>
+                  <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 28, color: wave.color }}>
+                    {wave.peakAds}
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>
+                    PEAK ADS
+                  </div>
+                </div>
+              </div>
+
+              {/* Mini bar chart showing the wave */}
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80, marginBottom: 16, padding: "0 4px" }}>
+                {waveData.map((d, i) => {
+                  const h = maxCount > 0 ? (d.count / maxCount) * 100 : 0;
+                  const isPeak = d.year === wave.peakYear;
+                  return (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{
+                        fontSize: 9, color: isPeak ? wave.color : "rgba(255,255,255,0.4)",
+                        fontFamily: "'DM Mono', monospace", fontWeight: isPeak ? 700 : 400,
+                      }}>
+                        {d.count > 0 ? d.count : ""}
+                      </div>
+                      <div style={{
+                        width: "100%", maxWidth: 40,
+                        height: `${Math.max(h, d.count > 0 ? 8 : 2)}%`,
+                        background: d.count > 0 ? (isPeak ? wave.color : `${wave.color}80`) : "rgba(255,255,255,0.05)",
+                        borderRadius: "3px 3px 0 0",
+                        transition: "height 0.5s ease",
+                        cursor: d.count > 0 ? "pointer" : "default",
+                      }}
+                      onClick={() => d.count > 0 && onSelectYear(d.year)}
+                      />
+                      <div style={{
+                        fontSize: 9, color: isPeak ? "#fff" : "rgba(255,255,255,0.3)",
+                        fontFamily: "'DM Mono', monospace",
+                      }}>
+                        {d.year.toString().slice(2)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Aftermath */}
+              <div style={{
+                background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 16, marginBottom: 12,
+              }}>
+                <div style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 6 }}>
+                  WHAT HAPPENED NEXT
+                </div>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.7, margin: 0 }}>
+                  {wave.aftermath}
+                </p>
+              </div>
+
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "'DM Mono', monospace" }}>
+                {wave.marketImpact}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* The pattern */}
+      <div style={{
+        marginTop: 48, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)",
+        borderRadius: 16, padding: 28,
+      }}>
+        <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, color: "#fff", marginBottom: 12 }}>
+          The Pattern
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
+          {[
+            { step: "1", label: "New industry appears", desc: "1-2 companies test the waters with a debut Super Bowl ad" },
+            { step: "2", label: "The flood", desc: "Within 1-2 years, the category explodes to 4-17 ads in a single game" },
+            { step: "3", label: "Peak hype", desc: "Super Bowl ad spending signals maximum euphoria, not the start of growth" },
+            { step: "4", label: "The crash", desc: "Most advertisers bankrupt or gone within 12-18 months of peak" },
+          ].map((s, i) => (
+            <div key={i}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%", background: "rgba(245,158,11,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13, color: "#f59e0b", fontFamily: "'DM Mono', monospace", fontWeight: 700,
+                marginBottom: 8,
+              }}>{s.step}</div>
+              <div style={{ fontSize: 14, color: "#fff", fontWeight: 600, marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>{s.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GraveyardView({ onSelectYear }) {
+  const [sortBy, setSortBy] = useState("year");
+  const [filterEra, setFilterEra] = useState("all");
+
+  const filtered = GRAVEYARD_DATA.filter(g => {
+    if (filterEra === "dotcom") return g.year <= 2001;
+    if (filterEra === "modern") return g.year >= 2010;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "year") return a.year - b.year;
+    if (sortBy === "speed") {
+      const aMonths = parseInt(a.timeToFail) || 99;
+      const bMonths = parseInt(b.timeToFail) || 99;
+      return aMonths - bMonths;
+    }
+    return 0;
+  });
+
+  const fateColors = {
+    "Bankrupt": "#ef4444",
+    "Shut down": "#f97316",
+    "Fire sale": "#eab308",
+    "Acquired/Pivoted": "#a855f7",
+    "Stock crash": "#ec4899",
+    "Rebranded": "#6366f1",
+  };
+
+  // Stats
+  const totalDead = GRAVEYARD_DATA.length;
+  const avgTimeToFail = Math.round(GRAVEYARD_DATA.reduce((s, g) => s + (parseInt(g.timeToFail) || 12), 0) / totalDead);
+  const dotcomDead = GRAVEYARD_DATA.filter(g => g.year === 2000).length;
+
+  return (
+    <div style={{ padding: "40px 20px", maxWidth: 1000, margin: "0 auto" }}>
+      <h2 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 32, color: "#fff", marginBottom: 8 }}>
+        The Graveyard
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, fontFamily: "'DM Sans', system-ui, sans-serif", lineHeight: 1.7 }}>
+        Companies that paid millions for a Super Bowl ad and were dead within months.
+        The Super Bowl doesn't kill companies — but it photographs them at peak hubris.
+      </p>
+
+      {/* Stats bar */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 32,
+      }}>
+        {[
+          { n: totalDead, label: "Companies", sub: "in the graveyard" },
+          { n: `~${avgTimeToFail}`, label: "Months", sub: "avg time to fail" },
+          { n: dotcomDead, label: "From 2000", sub: "Dot-Com Bowl alone" },
+          { n: "$100M+", label: "Wasted", sub: "on ads by dead companies" },
+        ].map((s, i) => (
+          <div key={i} style={{
+            background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 10, padding: "16px 14px", textAlign: "center",
+          }}>
+            <div style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 26, color: "#ef4444" }}>{s.n}</div>
+            <div style={{ fontSize: 12, color: "#fff", fontWeight: 500, marginTop: 2 }}>{s.label}</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Mono', monospace" }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+        {[
+          { id: "all", label: "All" },
+          { id: "dotcom", label: "Dot-Com Era" },
+          { id: "modern", label: "2010s-2020s" },
+        ].map(e => (
+          <button key={e.id} onClick={() => setFilterEra(e.id)} style={{
+            background: filterEra === e.id ? "#ef4444" : "rgba(255,255,255,0.06)",
+            color: filterEra === e.id ? "#fff" : "rgba(255,255,255,0.6)",
+            border: "none", padding: "6px 14px", borderRadius: 6, cursor: "pointer",
+            fontSize: 12, fontWeight: 500,
+          }}>
+            {e.label}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {[
+          { id: "year", label: "By Year" },
+          { id: "speed", label: "Fastest Death" },
+        ].map(s => (
+          <button key={s.id} onClick={() => setSortBy(s.id)} style={{
+            background: sortBy === s.id ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+            color: sortBy === s.id ? "#fff" : "rgba(255,255,255,0.4)",
+            border: "1px solid rgba(255,255,255,0.1)", padding: "6px 12px", borderRadius: 6, cursor: "pointer",
+            fontSize: 11, fontFamily: "'DM Mono', monospace",
+          }}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tombstones */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {sorted.map((company, i) => {
+          const fateColor = fateColors[company.fate] || "#888";
+          return (
+            <div key={i} style={{
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 12, padding: "18px 20px", position: "relative",
+              borderLeft: `3px solid ${fateColor}`,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <h4 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 20, color: "#fff", margin: 0 }}>
+                      {company.brand}
+                    </h4>
+                    <span style={{
+                      fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                      background: `${fateColor}20`, color: fateColor, fontFamily: "'DM Mono', monospace",
+                      fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase",
+                    }}>
+                      {company.fate}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, margin: 0 }}>
+                    {company.details}
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Mono', monospace", marginBottom: 2 }}>AD YEAR</div>
+                    <button onClick={() => onSelectYear(company.year)} style={{
+                      fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 20, color: "#f59e0b",
+                      background: "none", border: "none", cursor: "pointer",
+                    }}>
+                      {company.year}
+                    </button>
+                  </div>
+                  <div style={{ width: 1, height: 32, background: "rgba(255,255,255,0.1)" }} />
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Mono', monospace", marginBottom: 2 }}>TIME TO FAIL</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: fateColor, fontWeight: 600 }}>
+                      {company.timeToFail}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Bottom callout */}
+      <div style={{
+        marginTop: 40, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",
+        borderRadius: 16, padding: 28,
+      }}>
+        <h3 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 22, color: "#fff", marginBottom: 8 }}>
+          The IPO Curse
+        </h3>
+        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, margin: "0 0 16px" }}>
+          Research from TheStreet shows that nearly every company that buys a Super Bowl ad within 7 years of its IPO sees
+          its stock fall significantly within 2 years. The logic: companies advertise during peak hype, flush with investor cash,
+          right before reality sets in.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+          {[
+            { brand: "Carvana (2022)", detail: "Stock dropped 97.5% that year — $141 to $3.50" },
+            { brand: "Hims & Hers (2025)", detail: "Stock fell from $42.55 to $23.02 within a year" },
+            { brand: "Flutter/FanDuel (2024)", detail: "Peaked ~$300, crashed to ~$150" },
+            { brand: "Instacart (2025)", detail: "Dropped from $48.59 to ~$35" },
+          ].map((ex, i) => (
+            <div key={i} style={{
+              background: "rgba(0,0,0,0.3)", borderRadius: 8, padding: 12,
+            }}>
+              <div style={{ fontSize: 13, color: "#ef4444", fontWeight: 600, marginBottom: 4 }}>{ex.brand}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>{ex.detail}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // MAIN APP
 // ============================================================
@@ -1634,6 +2054,8 @@ function App() {
           <>
             {activeView === "timeline" && <TimelineView onSelectYear={handleSelectYear} />}
             {activeView === "industries" && <IndustriesView onSelectYear={handleSelectYear} />}
+            {activeView === "bubbles" && <BubbleDetectorView onSelectYear={handleSelectYear} />}
+            {activeView === "graveyard" && <GraveyardView onSelectYear={handleSelectYear} />}
             {activeView === "explore" && <ExploreView onSelectYear={handleSelectYear} />}
             {activeView === "insights" && <InsightsView onSelectYear={handleSelectYear} />}
           </>
