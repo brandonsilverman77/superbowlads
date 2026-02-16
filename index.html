@@ -1214,7 +1214,12 @@ function TimelineView({ onSelectYear }) {
   const topIndustries = getTopIndustriesOverall(12);
   const data = getTimelineData(topIndustries);
   const [hoveredIndustry, setHoveredIndustry] = useState(null);
+  const [filterIndustry, setFilterIndustry] = useState(null);
   const OTHER_COLOR = "#555";
+
+  const handleLegendClick = (key) => {
+    setFilterIndustry(filterIndustry === key ? null : key);
+  };
 
   return (
     <div style={{ padding: "40px 20px", maxWidth: 1200, margin: "0 auto" }}>
@@ -1222,7 +1227,7 @@ function TimelineView({ onSelectYear }) {
         Industry Mix Over Time
       </h2>
       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 32, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-        Number of advertisers by industry category per Super Bowl. Hover any color to see that industry's details.
+        Number of advertisers by industry category per Super Bowl. Click an industry label below to isolate it.
       </p>
 
       <div style={{ width: "100%", height: 420, marginBottom: 16 }}>
@@ -1233,37 +1238,74 @@ function TimelineView({ onSelectYear }) {
               interval={2} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
             <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
               tickLine={false} axisLine={false} />
-            <Tooltip content={<CustomTooltip hoveredIndustry={hoveredIndustry} topIndustries={topIndustries} />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
-            <Bar key="OTHER" dataKey="OTHER" stackId="a" fill={OTHER_COLOR}
-              style={{ cursor: "pointer" }}
-              onMouseOver={() => setHoveredIndustry("OTHER")}
-              onMouseOut={() => setHoveredIndustry(null)} />
-            {topIndustries.map(key => (
-              <Bar key={key} dataKey={key} stackId="a" fill={INDUSTRIES[key].color}
-                radius={key === topIndustries[topIndustries.length - 1] ? [2, 2, 0, 0] : 0}
+            <Tooltip content={<CustomTooltip hoveredIndustry={filterIndustry || hoveredIndustry} topIndustries={topIndustries} />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
+            {(!filterIndustry || filterIndustry === "OTHER") && (
+              <Bar key="OTHER" dataKey="OTHER" stackId={filterIndustry === "OTHER" ? undefined : "a"}
+                fill={OTHER_COLOR} radius={filterIndustry === "OTHER" ? [2, 2, 0, 0] : 0}
                 style={{ cursor: "pointer" }}
-                onMouseOver={() => setHoveredIndustry(key)}
+                onMouseOver={() => setHoveredIndustry("OTHER")}
                 onMouseOut={() => setHoveredIndustry(null)} />
-            ))}
+            )}
+            {topIndustries.map(key => {
+              if (filterIndustry && filterIndustry !== key) return null;
+              return (
+                <Bar key={key} dataKey={key} stackId={filterIndustry ? undefined : "a"}
+                  fill={INDUSTRIES[key].color}
+                  radius={[2, 2, 0, 0]}
+                  style={{ cursor: "pointer" }}
+                  onMouseOver={() => setHoveredIndustry(key)}
+                  onMouseOut={() => setHoveredIndustry(null)} />
+              );
+            })}
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", justifyContent: "center", marginBottom: 40 }}>
-        {topIndustries.map(key => (
-          <div key={key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: INDUSTRIES[key].color }} />
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              {INDUSTRIES[key].name}
-            </span>
-          </div>
-        ))}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* Clickable legend */}
+      {filterIndustry && (
+        <div style={{ textAlign: "center", marginBottom: 12 }}>
+          <button onClick={() => setFilterIndustry(null)} style={{
+            background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)",
+            borderRadius: 6, padding: "6px 14px", cursor: "pointer",
+            fontSize: 12, color: "#f59e0b", fontFamily: "'DM Sans', system-ui, sans-serif",
+          }}>
+            ← Show all industries
+          </button>
+        </div>
+      )}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 12px", justifyContent: "center", marginBottom: 40 }}>
+        {topIndustries.map(key => {
+          const isActive = filterIndustry === key;
+          const isDimmed = filterIndustry && !isActive;
+          return (
+            <button key={key} onClick={() => handleLegendClick(key)} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: isActive ? `${INDUSTRIES[key].color}20` : "transparent",
+              border: isActive ? `1px solid ${INDUSTRIES[key].color}50` : "1px solid transparent",
+              borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+              opacity: isDimmed ? 0.3 : 1,
+              transition: "all 0.2s ease",
+            }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: INDUSTRIES[key].color }} />
+              <span style={{ fontSize: 11, color: isActive ? "#fff" : "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+                {INDUSTRIES[key].name}
+              </span>
+            </button>
+          );
+        })}
+        <button onClick={() => handleLegendClick("OTHER")} style={{
+          display: "flex", alignItems: "center", gap: 6,
+          background: filterIndustry === "OTHER" ? "rgba(85,85,85,0.3)" : "transparent",
+          border: filterIndustry === "OTHER" ? "1px solid rgba(85,85,85,0.5)" : "1px solid transparent",
+          borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+          opacity: filterIndustry && filterIndustry !== "OTHER" ? 0.3 : 1,
+          transition: "all 0.2s ease",
+        }}>
           <div style={{ width: 10, height: 10, borderRadius: 2, background: OTHER_COLOR }} />
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          <span style={{ fontSize: 11, color: filterIndustry === "OTHER" ? "#fff" : "rgba(255,255,255,0.5)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             Other
           </span>
-        </div>
+        </button>
       </div>
       
       {/* Economic Events Timeline */}
