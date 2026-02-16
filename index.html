@@ -1237,7 +1237,7 @@ function TimelineView({ onSelectYear }) {
             <XAxis dataKey="year" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
               interval={2} tickLine={false} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
             <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "'DM Mono', monospace" }}
-              tickLine={false} axisLine={false} />
+              tickLine={false} axisLine={false} domain={[0, Math.max(...data.map(d => d.total))]} />
             <Tooltip content={<CustomTooltip hoveredIndustry={filterIndustry || hoveredIndustry} topIndustries={topIndustries} />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
             {(!filterIndustry || filterIndustry === "OTHER") && (
               <Bar key="OTHER" dataKey="OTHER" stackId={filterIndustry === "OTHER" ? undefined : "a"}
