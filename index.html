@@ -2372,17 +2372,22 @@ function SurvivorsView({ onSelectYear }) {
       {/* Tab toggle */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         {[
-          { id: "survivors", label: "🏆 Survivors (10+ years)" },
-          { id: "onehits", label: "💀 One-Hit Wonders" },
+          { id: "survivors", label: "🏆 Survivors", sub: `${survivors.length}`, color: "#22c55e" },
+          { id: "onehits", label: "⚡ One-Hit Wonders", sub: `${oneHits.length - deadOneHits.length}`, color: "#f59e0b" },
+          { id: "oneanddone", label: "💀 One & Done", sub: `${deadOneHits.length}`, color: "#ef4444" },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            background: tab === t.id ? (t.id === "survivors" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)") : "rgba(255,255,255,0.04)",
-            color: tab === t.id ? (t.id === "survivors" ? "#22c55e" : "#ef4444") : "rgba(255,255,255,0.5)",
-            border: `1px solid ${tab === t.id ? (t.id === "survivors" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)") : "rgba(255,255,255,0.08)"}`,
+            background: tab === t.id ? `${t.color}18` : "rgba(255,255,255,0.04)",
+            color: tab === t.id ? t.color : "rgba(255,255,255,0.5)",
+            border: `1px solid ${tab === t.id ? `${t.color}40` : "rgba(255,255,255,0.08)"}`,
             padding: "10px 18px", borderRadius: 8, cursor: "pointer",
-            fontSize: 13, fontWeight: 600,
+            fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6,
           }}>
             {t.label}
+            <span style={{
+              fontSize: 11, background: tab === t.id ? `${t.color}30` : "rgba(255,255,255,0.08)",
+              padding: "1px 7px", borderRadius: 10, fontFamily: "'DM Mono', monospace",
+            }}>{t.sub}</span>
           </button>
         ))}
       </div>
@@ -2448,53 +2453,121 @@ function SurvivorsView({ onSelectYear }) {
             <div style={{ width: 45 }} />
           </div>
         </div>
+      ) : tab === "onehits" ? (
+        <div>
+          {/* One-hit wonders (alive only) grouped by decade */}
+          {(() => {
+            const aliveOneHits = oneHits.filter(b => !GRAVEYARD_DATA.some(g => g.brand === b.brand));
+            return [
+              { label: "1990s", range: [1990, 1999] },
+              { label: "2000s", range: [2000, 2009] },
+              { label: "2010s", range: [2010, 2019] },
+              { label: "2020s", range: [2020, 2029] },
+            ].map(decade => {
+              const decadeHits = aliveOneHits.filter(b => b.first >= decade.range[0] && b.first <= decade.range[1]);
+              if (decadeHits.length === 0) return null;
+              return (
+                <div key={decade.label} style={{ marginBottom: 24 }}>
+                  <div style={{ fontSize: 12, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 10 }}>
+                    {decade.label} — {decadeHits.length} ONE-HIT WONDERS
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {decadeHits.sort((a, b) => a.first - b.first).map((brand, i) => {
+                      const ind = INDUSTRIES[brand.industry];
+                      return (
+                        <button key={i} onClick={() => onSelectYear(brand.first)} style={{
+                          background: `${ind?.color || "#888"}10`,
+                          border: `1px solid ${(ind?.color || "#888") + "30"}`,
+                          borderRadius: 6, padding: "6px 10px", cursor: "pointer",
+                          fontSize: 12, color: "#fff",
+                          display: "flex", alignItems: "center", gap: 5,
+                        }}>
+                          <span style={{ fontSize: 10 }}>{ind?.icon}</span>
+                          {brand.brand}
+                          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>({brand.first})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+
+          <div style={{
+            marginTop: 20, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)",
+            borderRadius: 10, padding: 16,
+          }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+              These brands appeared in exactly one Super Bowl and never came back — but the companies themselves are still around.
+              Some chose to redirect ad budgets, others found the ROI didn't justify the cost.
+            </div>
+          </div>
+        </div>
       ) : (
         <div>
-          {/* One-hit wonders grouped by decade */}
-          {[
-            { label: "1990s", range: [1990, 1999] },
-            { label: "2000s", range: [2000, 2009] },
-            { label: "2010s", range: [2010, 2019] },
-            { label: "2020s", range: [2020, 2029] },
-          ].map(decade => {
-            const decadeHits = oneHits.filter(b => b.first >= decade.range[0] && b.first <= decade.range[1]);
-            if (decadeHits.length === 0) return null;
+          {/* One & Done — appeared once, now dead */}
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 24, lineHeight: 1.7 }}>
+            These companies spent millions on a single Super Bowl ad and no longer exist.
+            For many, the ad was a last desperate bid for relevance — or a sign they were burning cash they didn't have.
+          </p>
+
+          {deadOneHits.sort((a, b) => a.first - b.first).map((brand, i) => {
+            const ind = INDUSTRIES[brand.industry];
+            const graveyardEntry = GRAVEYARD_DATA.find(g => g.brand === brand.brand);
             return (
-              <div key={decade.label} style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 12, fontFamily: "'DM Mono', monospace", color: "rgba(255,255,255,0.4)", letterSpacing: 1, marginBottom: 10 }}>
-                  {decade.label} — {decadeHits.length} ONE-HIT WONDERS
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {decadeHits.sort((a, b) => a.first - b.first).map((brand, i) => {
-                    const ind = INDUSTRIES[brand.industry];
-                    const isDead = GRAVEYARD_DATA.some(g => g.brand === brand.brand);
-                    return (
-                      <button key={i} onClick={() => onSelectYear(brand.first)} style={{
-                        background: isDead ? "rgba(239,68,68,0.08)" : `${ind?.color || "#888"}10`,
-                        border: `1px solid ${isDead ? "rgba(239,68,68,0.25)" : (ind?.color || "#888") + "30"}`,
-                        borderRadius: 6, padding: "6px 10px", cursor: "pointer",
-                        fontSize: 12, color: isDead ? "#ef4444" : "#fff",
-                        display: "flex", alignItems: "center", gap: 5,
-                      }}>
-                        {isDead && <span style={{ fontSize: 10 }}>💀</span>}
+              <div key={i} style={{
+                background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.12)",
+                borderRadius: 10, padding: "16px 18px", marginBottom: 10,
+                borderLeft: "3px solid #ef4444",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 14 }}>💀</span>
+                      <h4 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 18, color: "#fff", margin: 0 }}>
                         {brand.brand}
-                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>({brand.first})</span>
-                      </button>
-                    );
-                  })}
+                      </h4>
+                      {graveyardEntry && (
+                        <span style={{
+                          fontSize: 10, padding: "2px 7px", borderRadius: 4,
+                          background: "rgba(239,68,68,0.15)", color: "#ef4444",
+                          fontFamily: "'DM Mono', monospace", fontWeight: 600, textTransform: "uppercase",
+                        }}>
+                          {graveyardEntry.fate}
+                        </span>
+                      )}
+                    </div>
+                    {graveyardEntry && (
+                      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, margin: 0 }}>
+                        {graveyardEntry.details}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center", flexShrink: 0 }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Mono', monospace" }}>AD</div>
+                      <button onClick={() => onSelectYear(brand.first)} style={{
+                        fontFamily: "'Instrument Serif', Georgia, serif", fontSize: 18, color: "#f59e0b",
+                        background: "none", border: "none", cursor: "pointer",
+                      }}>{brand.first}</button>
+                    </div>
+                    {graveyardEntry && (
+                      <>
+                        <div style={{ fontSize: 16, color: "rgba(255,255,255,0.15)" }}>→</div>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: "'DM Mono', monospace" }}>DEAD</div>
+                          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 14, color: "#ef4444", fontWeight: 600 }}>
+                            {graveyardEntry.timeToFail}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );
           })}
-
-          <div style={{
-            marginTop: 20, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
-            borderRadius: 10, padding: 16,
-          }}>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
-              💀 = company is now defunct or bankrupt. One-hit wonders are disproportionately represented in the Graveyard — companies that can only afford one year of Super Bowl ads are often spending money they don't have.
-            </div>
-          </div>
         </div>
       )}
     </div>
